@@ -11,6 +11,7 @@ import { appendLog, applyStatePatch } from "./state.js";
 import { nodes } from "./nodes.js";
 import { ModelClient } from "./llm.js";
 import { OpenClawGateway } from "./openclaw.js";
+import { OpenClawMcpClient } from "./openclaw-mcp.js";
 
 export const CONTENT_AGENT_DEFINITION = {
   name: "Content X",
@@ -33,9 +34,10 @@ export const CONTENT_AGENT_DEFINITION = {
 export function createContentAgentRuntime({ tools, publishers, renderMarkdown, backendConfig = {} }) {
   const filesystem = new VirtualFilesystem();
   const memory = new AgentMemory();
-  const mcp = new McpGateway(tools, backendConfig);
   const model = new ModelClient(backendConfig);
   const openclaw = new OpenClawGateway(backendConfig);
+  const openclawMcp = new OpenClawMcpClient({ endpoint: backendConfig.mcpEndpoint });
+  const mcp = new McpGateway(tools, backendConfig, openclawMcp);
   const document = new DocumentWorkspace(filesystem);
   const graph = createContentAgentGraph(nodes);
   const channels = createContentChannels();
@@ -59,6 +61,7 @@ export function createContentAgentRuntime({ tools, publishers, renderMarkdown, b
     tools,
     model,
     openclaw,
+    openclawMcp,
     mcp,
     memory,
     filesystem,

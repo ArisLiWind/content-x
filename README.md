@@ -25,8 +25,7 @@ The current desktop builds are unsigned local-preview builds. On macOS, you may 
 - Runs a visible agent lifecycle instead of hiding work behind a single chat answer
 - Uses planning, research loops, review loops, human approval, and publishing handoff
 - Shows a Codex-style three-column workspace: tasks, interaction, file preview
-- Supports local account state and backend API configuration
-- Supports DeepSeek and OpenAI-compatible model configuration
+- Supports local account state and DeepSeek API Key configuration
 - Provides an OpenClaw Gateway adapter for browser/search/MCP-backed tools
 - Exports video scripts and prepares article publishing drafts
 - Keeps state, memory, virtual files, and checkpoints inside the Agent Harness
@@ -98,6 +97,25 @@ openclaw gateway status
 
 Content X V1 keeps the OpenClaw Gateway and MCP endpoint as fixed internal backend configuration, not user-facing settings.
 
+The OpenClaw MCP bridge is tracked as a backend integration target:
+
+- Upstream: [freema/openclaw-mcp](https://github.com/freema/openclaw-mcp)
+- Fork: [ArisLiWind/openclaw-mcp](https://github.com/ArisLiWind/openclaw-mcp)
+
+Start the Content X MCP bridge after the OpenClaw Gateway is running:
+
+```bash
+npm run backend:openclaw:mcp
+```
+
+Check local backend reachability:
+
+```bash
+npm run backend:openclaw:check
+```
+
+When the MCP bridge is reachable, `research.search` routes through `openclaw_chat`; if the bridge is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
+
 ## Current Scope
 
 - Three-column minimal dark workspace
@@ -106,6 +124,7 @@ Content X V1 keeps the OpenClaw Gateway and MCP endpoint as fixed internal backe
 - Agent execution panel with lifecycle, loop, and node logs
 - LangGraph-inspired `StateGraph`, `AgentLoopRunner`, `ChannelSet`, and `MemoryCheckpointer`
 - MCP-ready local tool router
+- OpenClaw MCP bridge scripts and `research.search` fallback routing
 - Local memory and virtual filesystem
 - Markdown document preview
 - Article publish handoff and video-script export

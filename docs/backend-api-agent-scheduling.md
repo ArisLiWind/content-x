@@ -112,6 +112,28 @@ OpenClaw Gateway: http://127.0.0.1:18789
 MCP Endpoint: http://127.0.0.1:8790/mcp
 ```
 
+OpenClaw MCP bridge：
+
+```text
+Upstream: https://github.com/freema/openclaw-mcp
+Fork: https://github.com/ArisLiWind/openclaw-mcp
+Local bridge folder: backend/openclaw-mcp
+```
+
+启动本地 MCP bridge：
+
+```bash
+npm run backend:openclaw:mcp
+```
+
+健康检查：
+
+```bash
+npm run backend:openclaw:check
+```
+
+`src/mcp.js` 中的 `McpGateway` 会在 `research.search` 阶段优先调用 `openclaw_chat`。如果 MCP bridge 不可达或超时，则回退到 `src/tools.js` 中的本地 V1 research adapter，保证前端体验不中断。
+
 OpenClaw 后端层目标能力：
 
 - Browser/CDP/Playwright：打开网页、点击 DOM、填表、读取页面、截图
