@@ -45,6 +45,7 @@ Content Agent
 | **Tools** | `src/tools.js` | Tool Router + 内置工具注册（attention.collect / research.search / document.toHtml） |
 | **Memory** | `src/memory.js` | AgentMemory：working / episodic / approvals 三类记忆 |
 | **Filesystem** | `src/filesystem.js` | VirtualFilesystem：localStorage 模拟文件读写 |
+| **Frontend DB** | `src/database.js` | IndexedDB-first 本地数据库，保存任务、配置、文件、记忆；不可用时回退 localStorage |
 | **Document** | `src/document.js` | DocumentWorkspace：保存多平台草稿变体 |
 | **Publishers** | `src/publishers.js` | PublisherRegistry + 5 个 Publisher 插件 |
 | **Backend** | `src/backend.js` | 账号会话与后端 API 配置持久化 |
@@ -93,6 +94,19 @@ API Key: 用户自己的 DeepSeek API Key
 
 Content X 使用 OpenAI-compatible `/chat/completions` 形式调用模型。API Key 只保存在本地 `localStorage`，不要写入源码、README 或 GitHub Release。
 
+本地后端服务运行时也支持从环境变量读取 DeepSeek Key：
+
+```bash
+export DEEPSEEK_API_KEY=your_deepseek_key
+npm run backend:start
+```
+
+连通性测试：
+
+```bash
+npm run backend:deepseek:test
+```
+
 ### 2.3 OpenClaw 后端配置
 
 OpenClaw 作为本地 Gateway，负责外部高质量信息访问和工具扩展。建议安装方式：
@@ -138,13 +152,29 @@ npm run backend:openclaw:check
 
 `src/mcp.js` 中的 `McpGateway` 会在 `research.search` 阶段优先调用 `src/openclaw.js` 的 `OpenClawGateway`，通过官方 Gateway 的 OpenAI-compatible `/v1/chat/completions` 路径获得研究结果。如果 Gateway 不可达或超时，则回退到 `src/tools.js` 中的本地 V1 research adapter，保证前端体验不中断。
 
+### 2.4 Content X 本地后端服务
+
+`backend/contentx/server.mjs` 提供 V1 后端服务：
+
+```text
+GET  /health          检查 DeepSeek Key 与 OpenClaw Gateway
+POST /deepseek/test   测试 DeepSeek 是否可响应
+POST /agent/research  OpenClaw 优先，DeepSeek 兜底的研究入口
+```
+
+默认地址：
+
+```text
+http://127.0.0.1:8788
+```
+
 OpenClaw 后端层目标能力：
 
 - Browser/CDP/Playwright：打开网页、点击 DOM、填表、读取页面、截图
 - Tool Layer：web search、browser、GitHub、filesystem 等能力由官方 OpenClaw 后端承接；Content X 内部保留 MCP-style 工具路由抽象
 - Skill System：`skill/SKILL.md` + `handler.ts`
 
-### 2.4 配置持久化流程
+### 2.5 配置持久化流程
 
 ```text
 用户填写设置表单
@@ -157,7 +187,7 @@ OpenClaw 后端层目标能力：
       → MemoryCheckpointer 接收 namespace
 ```
 
-### 2.5 配置读取流程
+### 2.6 配置读取流程
 
 ```text
 loadBackendConfig()
@@ -166,7 +196,7 @@ loadBackendConfig()
     → 返回完整配置对象
 ```
 
-### 2.6 账号配置
+### 2.7 账号配置
 
 账号状态独立于后端 API 配置，通过 `content-x-account-session` key 存储。
 
@@ -185,6 +215,26 @@ export const DEFAULT_ACCOUNT_SESSION = {
 | `email` | `string` | 账号邮箱 |
 | `name` | `string` | 显示名称 |
 | `plan` | `string` | 订阅计划名称 |
+
+### 2.8 前端本地数据库
+
+`src/database.js` 是 Content X V1 的前端本地数据库层：
+
+```text
+Database: content-x-db
+Stores:
+  kv      账号、后端设置等键值配置
+  tasks   对话任务、状态、草稿、发布状态
+  files   文章、视频剧本、平台变体文件
+  memory  Agent working / episodic / approvals 记忆
+```
+
+存储策略：
+
+- 优先使用 IndexedDB，保证比 localStorage 更适合保存长期任务和文档数据
+- 如果浏览器环境不支持 IndexedDB，则自动回退 localStorage
+- 启动时会迁移旧的 `content-x-tasks`、`content-x-files`、`content-x-memory`
+- 用户保存 DeepSeek Key、创建/继续对话、Agent 写入文件和 Memory 时，都会进入统一数据库层
 
 ---
 

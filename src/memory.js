@@ -1,3 +1,5 @@
+import { contentDatabase } from "./database.js";
+
 export class AgentMemory {
   constructor(namespace = "content-x-memory") {
     this.namespace = namespace;
@@ -57,4 +59,5 @@ function readJson(key, fallback) {
 
 function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+  contentDatabase.setMemory(key, value);
 }

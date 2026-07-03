@@ -29,6 +29,7 @@ The current desktop builds are unsigned local-preview builds. On macOS, you may 
 - Provides an OpenClaw Gateway adapter for browser/search/MCP-backed tools
 - Exports video scripts and prepares article publishing drafts
 - Keeps state, memory, virtual files, and checkpoints inside the Agent Harness
+- Persists local tasks, settings, memory, and draft files through an IndexedDB-first frontend database
 
 ## Product Positioning
 
@@ -62,6 +63,19 @@ Open `个人帐户 -> 设置` in the app and paste only your DeepSeek API Key.
 
 ```text
 API Key: your DeepSeek API key
+```
+
+For the local backend service, set the key before startup:
+
+```bash
+export DEEPSEEK_API_KEY=your_deepseek_key
+npm run backend:start
+```
+
+Test DeepSeek connectivity:
+
+```bash
+npm run backend:deepseek:test
 ```
 
 The V1 frontend intentionally hides internal settings from ordinary users. Content X uses these fixed internal values:
@@ -109,6 +123,26 @@ npm run backend:openclaw:check
 
 Content X V1 keeps the OpenClaw Gateway as fixed internal backend configuration, not a user-facing setting. When the Gateway is reachable, `research.search` routes through OpenClaw's OpenAI-compatible chat endpoint; if the Gateway is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
 
+## Local Backend Service
+
+Start Content X's local backend:
+
+```bash
+npm run backend:start
+```
+
+Default endpoint:
+
+```text
+http://127.0.0.1:8788
+```
+
+Backend routes:
+
+- `GET /health` checks DeepSeek key presence and OpenClaw Gateway reachability
+- `POST /deepseek/test` confirms DeepSeek can respond
+- `POST /agent/research` routes research through OpenClaw first, then DeepSeek fallback
+
 ## Current Scope
 
 - Three-column minimal dark workspace
@@ -118,7 +152,9 @@ Content X V1 keeps the OpenClaw Gateway as fixed internal backend configuration,
 - LangGraph-inspired `StateGraph`, `AgentLoopRunner`, `ChannelSet`, and `MemoryCheckpointer`
 - MCP-ready local tool router
 - Official OpenClaw Gateway check script and `research.search` fallback routing
+- Local Node backend service for health, DeepSeek test, and research routing
 - Local memory and virtual filesystem
+- IndexedDB-first frontend database with localStorage fallback
 - Markdown document preview
 - Article publish handoff and video-script export
 - Account menu with login, profile, settings, invite, quota, and logout states

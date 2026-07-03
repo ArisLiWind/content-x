@@ -38,3 +38,20 @@ npm run backend:openclaw:check
 ```
 
 Content X sends research tasks to the local OpenClaw Gateway through its OpenAI-compatible chat interface. If the Gateway is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
+
+## Content X Backend Service
+
+Content X also ships a local backend wrapper at `backend/contentx`.
+
+```bash
+export DEEPSEEK_API_KEY=your_deepseek_key
+npm run backend:start
+```
+
+It exposes:
+
+- `GET http://127.0.0.1:8788/health`
+- `POST http://127.0.0.1:8788/deepseek/test`
+- `POST http://127.0.0.1:8788/agent/research`
+
+The backend keeps OpenClaw, Memory, and routing internals out of the frontend settings page.

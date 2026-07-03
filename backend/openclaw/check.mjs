@@ -1,6 +1,12 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 const gatewayUrl = normalizeUrl(process.env.OPENCLAW_URL || "http://127.0.0.1:18789");
 
 const results = [];
+results.push(await checkCli());
 results.push(await checkGateway(gatewayUrl));
 results.push(await checkChatCompletions(gatewayUrl));
 
@@ -10,6 +16,33 @@ for (const result of results) {
 }
 
 if (results.some((result) => !result.ok)) process.exit(1);
+
+async function checkCli() {
+  const binary = existsSync("/usr/local/bin/openclaw") ? "/usr/local/bin/openclaw" : "openclaw";
+  try {
+    const { stdout, stderr } = await execFileAsync(binary, ["--version"], { timeout: 5000 });
+    const version = `${stdout}${stderr}`.trim();
+    return {
+      name: "OpenClaw CLI",
+      ok: true,
+      message: `installed (${version || "version unknown"})`
+    };
+  } catch (error) {
+    if (existsSync(binary)) {
+      const version = `${error.stdout || ""}${error.stderr || ""}`.trim();
+      return {
+        name: "OpenClaw CLI",
+        ok: true,
+        message: `installed (${version || "version command unavailable"})`
+      };
+    }
+    return {
+      name: "OpenClaw CLI",
+      ok: false,
+      message: `not available (${error.message}). Install with: npm install -g openclaw@latest`
+    };
+  }
+}
 
 async function checkGateway(url) {
   try {
@@ -23,7 +56,7 @@ async function checkGateway(url) {
     return {
       name: "OpenClaw Gateway",
       ok: false,
-      message: `${url} is not reachable (${error.message})`
+      message: `${url} is not reachable (${error.message}). Start with: openclaw onboard --install-daemon or npm run backend:openclaw:gateway`
     };
   }
 }

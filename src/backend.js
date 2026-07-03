@@ -1,6 +1,8 @@
 const ACCOUNT_KEY = "content-x-account-session";
 const BACKEND_KEY = "content-x-backend-config";
 
+import { contentDatabase } from "./database.js";
+
 export const DEFAULT_ACCOUNT_SESSION = {
   loggedIn: true,
   email: "azalearedn@gmail.com",
@@ -22,6 +24,10 @@ export function loadAccountSession() {
   return readJson(ACCOUNT_KEY, DEFAULT_ACCOUNT_SESSION);
 }
 
+export async function loadAccountSessionFromDatabase() {
+  return contentDatabase.getKey(ACCOUNT_KEY, loadAccountSession());
+}
+
 export function saveAccountSession(session) {
   const nextSession = {
     ...DEFAULT_ACCOUNT_SESSION,
@@ -29,6 +35,7 @@ export function saveAccountSession(session) {
     email: String(session.email || DEFAULT_ACCOUNT_SESSION.email).trim()
   };
   localStorage.setItem(ACCOUNT_KEY, JSON.stringify(nextSession));
+  contentDatabase.setKey(ACCOUNT_KEY, nextSession);
   return nextSession;
 }
 
@@ -39,6 +46,7 @@ export function clearAccountSession() {
     email: ""
   };
   localStorage.setItem(ACCOUNT_KEY, JSON.stringify(session));
+  contentDatabase.setKey(ACCOUNT_KEY, session);
   return session;
 }
 
@@ -46,9 +54,14 @@ export function loadBackendConfig() {
   return normalizeBackendConfig(readJson(BACKEND_KEY, DEFAULT_BACKEND_CONFIG));
 }
 
+export async function loadBackendConfigFromDatabase() {
+  return normalizeBackendConfig(await contentDatabase.getKey(BACKEND_KEY, loadBackendConfig()));
+}
+
 export function saveBackendConfig(config) {
   const nextConfig = normalizeBackendConfig(config);
   localStorage.setItem(BACKEND_KEY, JSON.stringify(nextConfig));
+  contentDatabase.setKey(BACKEND_KEY, nextConfig);
   return nextConfig;
 }
 

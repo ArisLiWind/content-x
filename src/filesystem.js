@@ -1,3 +1,5 @@
+import { contentDatabase } from "./database.js";
+
 export class VirtualFilesystem {
   constructor(namespace = "content-x-files") {
     this.namespace = namespace;
@@ -27,6 +29,10 @@ export class VirtualFilesystem {
     }
 
     this.writeStore(store.slice(0, 120));
+    contentDatabase.putFile({
+      ...file,
+      id: `${taskId}:${path}`
+    });
     return file;
   }
 

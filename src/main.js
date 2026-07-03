@@ -6,10 +6,13 @@ import { exportBlob, renderMarkdown } from "./markdown.js";
 import {
   clearAccountSession,
   loadAccountSession,
+  loadAccountSessionFromDatabase,
   loadBackendConfig,
+  loadBackendConfigFromDatabase,
   saveAccountSession,
   saveBackendConfig
 } from "./backend.js";
+import { contentDatabase, migrateLegacyLocalStorage } from "./database.js";
 
 const app = document.querySelector("#app");
 const tools = createDefaultToolRouter();
@@ -31,11 +34,21 @@ const store = {
   hasUpdate: false
 };
 
-if (store.tasks.length) {
-  store.activeTaskId = store.tasks[0].taskId;
-}
+bootstrap();
 
-render();
+async function bootstrap() {
+  await contentDatabase.ready();
+  await migrateLegacyLocalStorage();
+  store.tasks = await loadTasksFromDatabase();
+  store.account = await loadAccountSessionFromDatabase();
+  store.backendConfig = await loadBackendConfigFromDatabase();
+
+  if (store.tasks.length) {
+    store.activeTaskId = store.tasks[0].taskId;
+  }
+
+  render();
+}
 
 function render() {
   const activeTask = getActiveTask();
@@ -664,6 +677,11 @@ function upsertTask(task) {
   persistTasks();
 }
 
+async function loadTasksFromDatabase() {
+  const tasks = await contentDatabase.listTasks();
+  return tasks.length ? tasks : loadTasks();
+}
+
 function loadTasks() {
   try {
     return JSON.parse(localStorage.getItem("content-x-tasks") || "[]");
@@ -674,6 +692,7 @@ function loadTasks() {
 
 function persistTasks() {
   localStorage.setItem("content-x-tasks", JSON.stringify(store.tasks.slice(0, 20)));
+  for (const task of store.tasks.slice(0, 80)) contentDatabase.putTask(task);
 }
 
 function formatStatus(status) {

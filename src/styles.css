@@ -371,10 +371,17 @@ input:disabled {
 }
 
 
-.account-primary {
+.account-menu .account-primary {
   margin-top: 1px;
+  min-height: 42px;
   text-align: center;
   background: #f2f2f2;
+  color: #111;
+  font-weight: 650;
+}
+
+.account-menu .account-primary:hover {
+  background: #ffffff;
   color: #111;
 }
 
