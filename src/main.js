@@ -1,8 +1,15 @@
 import { WorkflowHarness } from "./harness.js";
-import { createTaskState, WORKFLOW_STATUS } from "./state.js";
+import { createTaskState } from "./state.js";
 import { createDefaultToolRouter } from "./tools.js";
 import { createPublisherRegistry } from "./publishers.js";
 import { exportBlob, renderMarkdown } from "./markdown.js";
+import {
+  clearAccountSession,
+  loadAccountSession,
+  loadBackendConfig,
+  saveAccountSession,
+  saveBackendConfig
+} from "./backend.js";
 
 const app = document.querySelector("#app");
 const tools = createDefaultToolRouter();
@@ -12,7 +19,16 @@ const store = {
   tasks: loadTasks(),
   activeTaskId: null,
   isRunning: false,
-  selectedVariant: "wechat"
+  selectedVariant: "wechat",
+  sidebarMode: "tasks",
+  searchQuery: "",
+  previewMode: "file",
+  accountMenuOpen: false,
+  accountView: "menu",
+  account: loadAccountSession(),
+  backendConfig: loadBackendConfig(),
+  accountNotice: "",
+  hasUpdate: false
 };
 
 if (store.tasks.length) {
@@ -26,8 +42,8 @@ function render() {
   app.innerHTML = `
     <main class="workspace">
       ${renderSidebar(activeTask)}
-      ${renderAgentPanel(activeTask)}
-      ${renderDocumentPanel(activeTask)}
+      ${renderMainPanel(activeTask)}
+      ${renderPreviewPanel(activeTask)}
     </main>
   `;
 
@@ -35,22 +51,27 @@ function render() {
 }
 
 function renderSidebar(activeTask) {
+  const visibleTasks = getVisibleSidebarTasks();
+
   return `
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">CX</div>
-        <div>
-          <h1>Content X</h1>
-          <p>AI Content Agent</p>
-        </div>
+      <div class="window-controls" aria-hidden="true">
+        <span></span><span></span><span></span>
       </div>
-      <button class="new-task" data-action="new-task">+ New Task</button>
+      <nav class="nav-list" aria-label="Main">
+        <button class="nav-item ${store.sidebarMode === "tasks" ? "active" : ""}" data-action="new-task">新对话</button>
+        <button class="nav-item ${store.sidebarMode === "search" ? "active" : ""}" data-action="search">搜索</button>
+      </nav>
+
+      ${store.sidebarMode === "search" ? renderSearchBox() : ""}
+
+      <div class="section-label">Content X</div>
       <div class="task-list">
-        ${store.tasks
+        ${visibleTasks
           .map(
             (task) => `
               <button class="task-item ${activeTask?.taskId === task.taskId ? "active" : ""}" data-task-id="${task.taskId}">
-                <span class="task-title">${escapeHtml(task.topic.normalized || "Untitled Task")}</span>
+                <span class="task-title">${escapeHtml(displayText(task.topic.normalized || "Untitled Task"))}</span>
                 <span class="task-meta">
                   <span class="status-dot ${task.status}"></span>
                   ${formatStatus(task.status)}
@@ -58,51 +79,277 @@ function renderSidebar(activeTask) {
               </button>
             `
           )
-          .join("")}
+          .join("") || `<div class="empty task-empty">${store.sidebarMode === "search" ? "没有匹配结果" : "还没有任务"}</div>`}
+      </div>
+      <div class="account-wrap">
+        <button class="account-row" data-action="toggle-account-menu" type="button">
+        <div class="avatar">CX</div>
+        <div>
+          <strong>${escapeHtml(store.account.loggedIn ? store.account.name : "未登录")}</strong>
+          <span>${escapeHtml(store.account.loggedIn ? store.account.plan : "点击登录")}</span>
+        </div>
+        ${store.hasUpdate ? `<span class="update-button">更新</span>` : ""}
+        </button>
+        ${store.accountMenuOpen ? renderAccountMenu() : ""}
       </div>
     </aside>
   `;
 }
 
-function renderAgentPanel(task) {
-  const defaultPrompt = "分析今天最重要的 AI 技术进展，并生成一篇公众号文章和小红书版本。";
+function renderAccountMenu() {
+  if (!store.account.loggedIn) {
+    return `
+      <div class="account-menu">
+        <div class="account-menu-head">
+          <span>Content X</span>
+          <strong>登录账号</strong>
+        </div>
+        <form class="account-form" data-action="account-login">
+          <label>
+            邮箱
+            <input name="email" value="azalearedn@gmail.com" autocomplete="email" />
+          </label>
+          <label>
+            密码
+            <input name="password" type="password" placeholder="本地预览可留空" autocomplete="current-password" />
+          </label>
+          <button class="account-primary" type="submit">登录</button>
+        </form>
+        ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
+      </div>
+    `;
+  }
+
+  if (store.accountView === "settings") return renderSettingsPanel();
+  if (store.accountView === "profile") return renderSimpleAccountPanel("个人资料", "创作者账号已连接本地 Content Agent。");
+  if (store.accountView === "invite") return renderSimpleAccountPanel("邀请好友", "邀请链接会在接入正式后端后生成。");
+  if (store.accountView === "quota") return renderSimpleAccountPanel("剩余用量", "本地预览：30 / 100 次 Agent Run。");
 
   return `
-    <section class="agent-panel">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">Core Agent</span>
-          <h2>Execution</h2>
-        </div>
-        <span class="run-state">${task ? formatStatus(task.status) : "Idle"}</span>
+    <div class="account-menu">
+      <div class="account-menu-head">
+        <span>${escapeHtml(store.account.email)}</span>
+        <strong>个人帐户</strong>
       </div>
+      <div class="account-menu-actions">
+        <button data-account-view="profile" type="button">个人资料</button>
+        <button data-account-view="settings" type="button">设置</button>
+        <button data-account-view="invite" type="button">邀请好友</button>
+        <button data-account-view="quota" type="button">剩余用量</button>
+        <button data-action="account-logout" type="button">退出登录</button>
+      </div>
+      ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
+    </div>
+  `;
+}
 
-      <form class="goal-form" data-action="run-task">
-        <textarea name="goal" rows="4" placeholder="输入内容目标">${task?.userInput || defaultPrompt}</textarea>
-        <button ${store.isRunning ? "disabled" : ""} type="submit">Run Workflow</button>
+function renderSettingsPanel() {
+  return `
+    <div class="account-menu account-menu-large">
+      <div class="account-panel-head">
+        <button class="account-back" data-action="account-back" type="button">‹</button>
+        <strong>设置</strong>
+      </div>
+      <form class="account-form" data-action="save-backend-config">
+        <label>
+          API Base URL
+          <input name="apiBaseUrl" value="${escapeHtml(store.backendConfig.apiBaseUrl)}" placeholder="http://127.0.0.1:8787" />
+        </label>
+        <label>
+          API Key
+          <input name="apiKey" value="${escapeHtml(store.backendConfig.apiKey)}" placeholder="sk-..." autocomplete="off" />
+        </label>
+        <label>
+          Model
+          <input name="model" value="${escapeHtml(store.backendConfig.model)}" placeholder="gpt-5" />
+        </label>
+        <label>
+          MCP Endpoint
+          <input name="mcpEndpoint" value="${escapeHtml(store.backendConfig.mcpEndpoint)}" placeholder="http://127.0.0.1:8790/mcp" />
+        </label>
+        <label>
+          Memory Namespace
+          <input name="memoryNamespace" value="${escapeHtml(store.backendConfig.memoryNamespace)}" />
+        </label>
+        <button class="account-primary" type="submit">保存配置</button>
       </form>
+      ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
+    </div>
+  `;
+}
 
-      <div class="runtime-grid">
-        <div>
-          <span>Current Node</span>
-          <strong>${task?.currentNode || "None"}</strong>
+function renderSimpleAccountPanel(title, body) {
+  return `
+    <div class="account-menu">
+      <div class="account-panel-head">
+        <button class="account-back" data-action="account-back" type="button">‹</button>
+        <strong>${escapeHtml(title)}</strong>
+      </div>
+      <p class="account-panel-copy">${escapeHtml(body)}</p>
+    </div>
+  `;
+}
+
+function renderSearchBox() {
+  return `
+    <form class="search-form" data-action="search-form">
+      <input name="query" value="${escapeHtml(store.searchQuery)}" placeholder="搜索内容任务" autocomplete="off" />
+      ${store.searchQuery ? `<button type="button" data-action="clear-search">清除</button>` : ""}
+    </form>
+  `;
+}
+
+function renderMainPanel(task) {
+  const defaultPrompt = "分析今天最重要的 AI 技术进展，并生成一篇文章和视频剧本。";
+
+  return `
+    <section class="main-panel">
+      <div class="thread">
+        <div class="empty-state">
+          <h2>你想在 <span>Content X</span> 中创作什么？</h2>
         </div>
-        <div>
-          <span>Research</span>
-          <strong>${task?.loops.researchRound || 0}/3</strong>
-        </div>
-        <div>
-          <span>Review</span>
-          <strong>${task?.loops.reviewRound || 0}/2</strong>
-        </div>
-        <div>
-          <span>Publish</span>
-          <strong>${task?.loops.publishRetry || 0}/2</strong>
-        </div>
+        ${task ? renderConversation(task) : ""}
       </div>
 
+      <div class="composer-wrap">
+        <form class="goal-form composer" data-action="run-task">
+          <textarea name="goal" rows="3" placeholder="随心输入">${escapeHtml(displayText(task?.userInput || defaultPrompt))}</textarea>
+          <div class="composer-actions">
+            <span class="composer-meta">${task ? "新任务会创建一条新的内容线程" : "Content X / local"}</span>
+            <button ${store.isRunning ? "disabled" : ""} type="submit">↑</button>
+          </div>
+        </form>
+        <form class="revision-form" data-action="revise">
+          <input name="instruction" placeholder="要求后续变更" ${!task?.draft.markdown ? "disabled" : ""} />
+          <button ${!task?.draft.markdown || store.isRunning ? "disabled" : ""} type="submit">修改</button>
+        </form>
+      </div>
+    </section>
+  `;
+}
+
+function renderConversation(task) {
+  return `
+    <section class="conversation">
+      <article class="message user-message">
+        <p>${escapeHtml(displayText(task.userInput))}</p>
+      </article>
+      ${renderProgress(task)}
+      ${renderWaitingState(task)}
+    </section>
+  `;
+}
+
+function renderPreviewPanel(task) {
+  const variants = task?.draft.variants || [];
+  const activeVariant = variants.find((variant) => variant.platform === store.selectedVariant) || variants[0];
+  const markdown = activeVariant?.markdown || task?.draft.markdown || "";
+  const html = markdown ? renderMarkdown(displayText(markdown)) : "";
+  const publishedTasks = getPublishedTasks();
+  const reviewTasks = getReviewTasks();
+
+  return `
+    <aside class="preview-panel">
+      <div class="preview-header">
+        <strong>文件</strong>
+      </div>
+
+      <div class="stats-row">
+        <button class="stat-button ${store.previewMode === "published" ? "active" : ""}" data-preview-mode="published">
+          <strong>${publishedTasks.length}</strong><span>今日发布</span>
+        </button>
+        <button class="stat-button ${store.previewMode === "review" ? "active" : ""}" data-preview-mode="review">
+          <strong>${reviewTasks.length}</strong><span>待审核</span>
+        </button>
+      </div>
+
+      ${
+        store.previewMode === "published"
+          ? renderTaskListPanel("今日发布", publishedTasks)
+          : store.previewMode === "review"
+            ? renderTaskListPanel("待审核", reviewTasks)
+            : renderFilePanel({ variants, activeVariant, markdown, html })
+      }
+    </aside>
+  `;
+}
+
+function renderFilePanel({ variants, activeVariant, markdown, html }) {
+  const isVideoScript = activeVariant?.platform === "xiaohongshu";
+  const primaryAction = isVideoScript ? "export-md" : "publish";
+  const primaryLabel = isVideoScript ? "导出" : "发布";
+
+  return `
+    <section class="file-panel">
+      <div class="file-toolbar">
+        <div class="variant-tabs">
+          ${variants
+            .map(
+              (variant) => `
+                <button class="${activeVariant?.platform === variant.platform ? "active" : ""}" data-variant="${variant.platform}">
+                  ${platformLabel(variant.platform)}
+                </button>
+              `
+            )
+            .join("") || `<button class="active" disabled>预览</button>`}
+          </div>
+          <div class="doc-actions">
+            <button class="primary-action" data-action="${primaryAction}" ${!markdown ? "disabled" : ""}>${primaryLabel}</button>
+          </div>
+        </div>
+      ${
+        markdown
+          ? `<article class="markdown-preview">${html}</article>`
+          : `<div class="preview-empty">从工作区目录树中选择文件</div>`
+      }
+    </section>
+  `;
+}
+
+function renderTaskListPanel(title, tasks) {
+  return `
+    <section class="preview-list-panel">
+      <div class="preview-list-header">
+        <strong>${title}</strong>
+        <button data-preview-mode="file" type="button">返回文件</button>
+      </div>
+      <div class="preview-task-list">
+        ${tasks
+          .map(
+            (task) => `
+              <button class="preview-task-item" data-open-preview-task="${task.taskId}">
+                <span>${escapeHtml(displayText(task.topic.normalized || "Untitled Task"))}</span>
+                <em>${formatStatus(task.status)}</em>
+              </button>
+            `
+          )
+          .join("") || `<div class="preview-empty">暂无${title}内容</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderProgress(task) {
+  const recentLogs = (task.logs || []).slice(-6);
+
+  return `
+    <section class="run-card">
+      <div class="run-summary">
+        <div>
+          <span>当前节点</span>
+          <strong>${task.currentNode || "准备中"}</strong>
+        </div>
+        <div>
+          <span>研究</span>
+          <strong>${task.loops.researchRound || 0}/3</strong>
+        </div>
+        <div>
+          <span>审稿</span>
+          <strong>${task.loops.reviewRound || 0}/2</strong>
+        </div>
+      </div>
       <div class="log-stream">
-        ${(task?.logs || [])
+        ${recentLogs
           .map(
             (log) => `
               <div class="log-line ${log.level}">
@@ -113,83 +360,141 @@ function renderAgentPanel(task) {
           )
           .join("") || `<div class="empty">等待任务启动</div>`}
       </div>
-
-      <form class="revision-form" data-action="revise">
-        <input name="instruction" placeholder="用自然语言修改文档，例如：更适合小红书、加一个强观点标题" ${!task?.draft.markdown ? "disabled" : ""} />
-        <button ${!task?.draft.markdown || store.isRunning ? "disabled" : ""} type="submit">Revise</button>
-      </form>
     </section>
   `;
 }
 
-function renderDocumentPanel(task) {
-  const variants = task?.draft.variants || [];
-  const activeVariant = variants.find((variant) => variant.platform === store.selectedVariant) || variants[0];
-  const markdown = activeVariant?.markdown || task?.draft.markdown || "";
-  const html = markdown ? renderMarkdown(markdown) : "";
-
+function renderWaitingState(task) {
   return `
-    <section class="document-panel">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">Document</span>
-          <h2>Preview</h2>
-        </div>
-        <div class="doc-actions">
-          <button data-action="copy" ${!markdown ? "disabled" : ""}>Copy</button>
-          <button data-action="export-md" ${!markdown ? "disabled" : ""}>MD</button>
-          <button data-action="export-html" ${!markdown ? "disabled" : ""}>HTML</button>
-          <button class="primary" data-action="publish" ${!task || store.isRunning || !markdown ? "disabled" : ""}>Publish Draft</button>
-        </div>
-      </div>
-
-      <div class="variant-tabs">
-        ${variants
-          .map(
-            (variant) => `
-              <button class="${activeVariant?.platform === variant.platform ? "active" : ""}" data-variant="${variant.platform}">
-                ${platformLabel(variant.platform)}
-              </button>
-            `
-          )
-          .join("")}
-      </div>
-
-      <div class="doc-shell">
-        <textarea class="markdown-editor" data-action="edit-doc" placeholder="Document will appear here...">${escapeHtml(markdown)}</textarea>
-        <article class="markdown-preview">
-          ${html || `<div class="empty">运行工作流后，这里会显示可编辑文档预览</div>`}
-        </article>
-      </div>
-
-      <div class="publish-result">
-        ${(task?.publishStatus.outputs || [])
-          .map(
-            (output) => `
-              <div>
-                <strong>${platformLabel(output.platform)}</strong>
-                <span>${output.status}</span>
-                ${output.fileName ? `<code>${escapeHtml(output.fileName)}</code>` : ""}
-              </div>
-            `
-          )
-          .join("")}
-      </div>
-    </section>
+    <article class="message assistant-message">
+      <p>${store.isRunning ? "正在整理内容草稿..." : `任务状态：${formatStatus(task.status)}。文件预览在右侧窗口。`}</p>
+    </article>
   `;
 }
 
 function bindEvents() {
+  app.onclick = (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+
+    if (button.dataset.action === "toggle-account-menu") {
+      store.accountMenuOpen = !store.accountMenuOpen;
+      store.accountView = "menu";
+      store.accountNotice = "";
+      render();
+      return;
+    }
+
+    if (button.dataset.accountView) {
+      store.accountView = button.dataset.accountView;
+      store.accountNotice = "";
+      render();
+      return;
+    }
+
+    if (button.dataset.action === "account-back") {
+      store.accountView = "menu";
+      store.accountNotice = "";
+      render();
+      return;
+    }
+
+    if (button.dataset.action === "account-logout") {
+      store.account = clearAccountSession();
+      store.accountView = "menu";
+      store.accountNotice = "已退出登录。";
+      render();
+    }
+  };
+
+  document.querySelector("[data-action='account-login']")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = form.get("email").toString().trim();
+    if (!email) {
+      store.accountNotice = "请输入邮箱。";
+      render();
+      return;
+    }
+    store.account = saveAccountSession({
+      loggedIn: true,
+      email,
+      name: "创作者",
+      plan: "Content X Pro"
+    });
+    store.accountView = "menu";
+    store.accountNotice = "已登录。";
+    render();
+  });
+
+  document.querySelector("[data-action='save-backend-config']")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    store.backendConfig = saveBackendConfig({
+      apiBaseUrl: form.get("apiBaseUrl"),
+      apiKey: form.get("apiKey"),
+      model: form.get("model"),
+      mcpEndpoint: form.get("mcpEndpoint"),
+      memoryNamespace: form.get("memoryNamespace")
+    });
+    store.accountNotice = "后端 API 配置已保存。";
+    render();
+  });
+
   document.querySelector("[data-action='new-task']")?.addEventListener("click", () => {
     store.activeTaskId = null;
     store.selectedVariant = "wechat";
+    store.sidebarMode = "tasks";
+    store.accountMenuOpen = false;
     render();
+  });
+
+  document.querySelector("[data-action='search']")?.addEventListener("click", () => {
+    store.sidebarMode = "search";
+    store.accountMenuOpen = false;
+    render();
+    document.querySelector(".search-form input")?.focus();
+  });
+
+  document.querySelector("[data-action='search-form']")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+
+  document.querySelector(".search-form input")?.addEventListener("input", (event) => {
+    store.searchQuery = event.target.value;
+    render();
+    const input = document.querySelector(".search-form input");
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  document.querySelector("[data-action='clear-search']")?.addEventListener("click", () => {
+    store.searchQuery = "";
+    render();
+    document.querySelector(".search-form input")?.focus();
   });
 
   document.querySelectorAll("[data-task-id]").forEach((button) => {
     button.addEventListener("click", () => {
       store.activeTaskId = button.dataset.taskId;
       store.selectedVariant = "wechat";
+      store.previewMode = "file";
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-preview-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      store.previewMode = button.dataset.previewMode;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-open-preview-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      store.activeTaskId = button.dataset.openPreviewTask;
+      store.selectedVariant = "wechat";
+      store.previewMode = "file";
       render();
     });
   });
@@ -210,7 +515,8 @@ function bindEvents() {
       {
         tools,
         publishers,
-        renderMarkdown
+        renderMarkdown,
+        backendConfig: store.backendConfig
       },
       (nextState) => {
         upsertTask(nextState);
@@ -239,7 +545,8 @@ function bindEvents() {
       {
         tools,
         publishers,
-        renderMarkdown
+        renderMarkdown,
+        backendConfig: store.backendConfig
       },
       (nextState) => {
         upsertTask(nextState);
@@ -266,7 +573,8 @@ function bindEvents() {
       {
         tools,
         publishers,
-        renderMarkdown
+        renderMarkdown,
+        backendConfig: store.backendConfig
       },
       (nextState) => {
         upsertTask(nextState);
@@ -306,30 +614,11 @@ function bindEvents() {
   document.querySelectorAll("[data-variant]").forEach((button) => {
     button.addEventListener("click", () => {
       store.selectedVariant = button.dataset.variant;
+      store.previewMode = "file";
       render();
     });
   });
 
-  document.querySelector("[data-action='edit-doc']")?.addEventListener("input", (event) => {
-    const task = getActiveTask();
-    if (!task) return;
-    const markdown = event.target.value;
-    const variants = task.draft.variants.map((variant) =>
-      variant.platform === store.selectedVariant ? { ...variant, markdown } : variant
-    );
-    upsertTask({
-      ...task,
-      draft: {
-        ...task.draft,
-        markdown: store.selectedVariant === "wechat" ? markdown : task.draft.markdown,
-        variants
-      },
-      status: WORKFLOW_STATUS.WAITING_APPROVAL,
-      updatedAt: new Date().toISOString()
-    });
-    persistTasks();
-    document.querySelector(".markdown-preview").innerHTML = renderMarkdown(markdown);
-  });
 }
 
 function getCurrentMarkdown() {
@@ -337,6 +626,30 @@ function getCurrentMarkdown() {
   if (!task) return "";
   const variant = task.draft.variants.find((item) => item.platform === store.selectedVariant);
   return variant?.markdown || task.draft.markdown;
+}
+
+function getVisibleSidebarTasks() {
+  if (store.sidebarMode !== "search") return store.tasks;
+  const query = store.searchQuery.trim().toLowerCase();
+  if (!query) return store.tasks;
+  return store.tasks.filter((task) => {
+    const values = [
+      task.userInput,
+      task.topic.normalized,
+      task.outline.title,
+      task.status,
+      ...(task.draft.variants || []).map((variant) => `${variant.platform} ${variant.markdown || ""}`)
+    ];
+    return values.some((value) => String(value || "").toLowerCase().includes(query));
+  });
+}
+
+function getPublishedTasks() {
+  return store.tasks.filter((task) => task.status === "done" || (task.publishStatus?.outputs || []).length > 0);
+}
+
+function getReviewTasks() {
+  return store.tasks.filter((task) => ["waiting_approval", "ready"].includes(task.status));
 }
 
 function getActiveTask() {
@@ -367,21 +680,21 @@ function persistTasks() {
 
 function formatStatus(status) {
   const labels = {
-    idle: "Idle",
-    running: "Running",
-    waiting_approval: "Waiting Approval",
-    ready: "Ready",
-    publishing: "Publishing",
-    done: "Done",
-    failed: "Failed"
+    idle: "空闲",
+    running: "运行中",
+    waiting_approval: "待确认",
+    ready: "就绪",
+    publishing: "发布中",
+    done: "完成",
+    failed: "失败"
   };
   return labels[status] || status;
 }
 
 function platformLabel(platform) {
   const labels = {
-    wechat: "公众号",
-    xiaohongshu: "小红书",
+    wechat: "文章",
+    xiaohongshu: "视频剧本",
     markdown: "Markdown",
     html: "HTML",
     x: "X",
@@ -400,6 +713,12 @@ function formatTime(value) {
 
 function safeFileName(value) {
   return value.replace(/[^\w\u4e00-\u9fa5-]+/g, "-").replace(/^-+|-+$/g, "") || "content-x-draft";
+}
+
+function displayText(value) {
+  return String(value || "")
+    .replace(/公众号/g, "文章")
+    .replace(/小红书/g, "视频剧本");
 }
 
 function escapeHtml(value) {
