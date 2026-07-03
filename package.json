@@ -1,0 +1,20 @@
+{
+  "name": "content-x",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Content X: Codex-style AI agent workspace for attention discovery, content research, writing, editing, and publishing drafts.",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 3032",
+    "check": "node --check src/main.js && node --check src/harness.js && node --check src/nodes.js && node --check src/state.js && node --check src/tools.js && node --check src/publishers.js && node --check src/markdown.js"
+  },
+  "keywords": [
+    "ai-agent",
+    "content-workflow",
+    "mcp",
+    "publisher",
+    "markdown"
+  ],
+  "author": "",
+  "license": "MIT"
+}
