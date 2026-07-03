@@ -9,13 +9,13 @@ export const DEFAULT_ACCOUNT_SESSION = {
 };
 
 export const DEFAULT_BACKEND_CONFIG = {
-  provider: "local",
+  provider: "deepseek",
   apiBaseUrl: "https://api.deepseek.com",
   apiKey: "",
   model: "deepseek-chat",
   openclawGatewayUrl: "http://127.0.0.1:18789",
   openclawApiKey: "",
-  mcpEndpoint: "",
+  mcpEndpoint: "http://127.0.0.1:8790/mcp",
   memoryNamespace: "content-x-memory"
 };
 
@@ -44,24 +44,20 @@ export function clearAccountSession() {
 }
 
 export function loadBackendConfig() {
-  return readJson(BACKEND_KEY, DEFAULT_BACKEND_CONFIG);
+  return normalizeBackendConfig(readJson(BACKEND_KEY, DEFAULT_BACKEND_CONFIG));
 }
 
 export function saveBackendConfig(config) {
-  const nextConfig = {
-    ...DEFAULT_BACKEND_CONFIG,
-    ...config,
-    provider: String(config.provider || DEFAULT_BACKEND_CONFIG.provider).trim(),
-    apiBaseUrl: String(config.apiBaseUrl || DEFAULT_BACKEND_CONFIG.apiBaseUrl).trim(),
-    apiKey: String(config.apiKey || "").trim(),
-    model: String(config.model || DEFAULT_BACKEND_CONFIG.model).trim(),
-    openclawGatewayUrl: String(config.openclawGatewayUrl || "").trim(),
-    openclawApiKey: String(config.openclawApiKey || "").trim(),
-    mcpEndpoint: String(config.mcpEndpoint || "").trim(),
-    memoryNamespace: String(config.memoryNamespace || DEFAULT_BACKEND_CONFIG.memoryNamespace).trim()
-  };
+  const nextConfig = normalizeBackendConfig(config);
   localStorage.setItem(BACKEND_KEY, JSON.stringify(nextConfig));
   return nextConfig;
+}
+
+function normalizeBackendConfig(config = {}) {
+  return {
+    ...DEFAULT_BACKEND_CONFIG,
+    apiKey: String(config.apiKey || "").trim()
+  };
 }
 
 function readJson(key, fallback) {

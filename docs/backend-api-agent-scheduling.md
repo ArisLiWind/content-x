@@ -62,13 +62,13 @@ Content Agent
 
 ```js
 export const DEFAULT_BACKEND_CONFIG = {
-  provider:         "local",                         // local / deepseek / openai / openclaw
+  provider:         "deepseek",                      // V1 固定 DeepSeek
   apiBaseUrl:       "https://api.deepseek.com",      // OpenAI-compatible API 基础地址
   apiKey:           "",                               // API 认证密钥
   model:            "deepseek-chat",                  // 模型标识符
   openclawGatewayUrl: "http://127.0.0.1:18789",       // OpenClaw Gateway
-  openclawApiKey:   "",                               // OpenClaw Gateway 可选认证
-  mcpEndpoint:      "",                               // MCP 服务端点
+  openclawApiKey:   "",                               // V1 不暴露到普通用户设置页
+  mcpEndpoint:      "http://127.0.0.1:8790/mcp",      // MCP 服务端点
   memoryNamespace:  "content-x-memory"                // 记忆命名空间
 };
 ```
@@ -77,23 +77,19 @@ export const DEFAULT_BACKEND_CONFIG = {
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `provider` | `string` | 是 | `local` | 模型/后端提供方：`local`、`deepseek`、`openai`、`openclaw` |
-| `apiBaseUrl` | `string` | 是 | `https://api.deepseek.com` | OpenAI-compatible LLM API 基础 URL |
-| `apiKey` | `string` | 建议 | `""` | API 认证密钥。V1 为本地预览模式，不填时可运行但无实际模型调用；连接正式后端时必须填写 |
-| `model` | `string` | 是 | `deepseek-chat` | 调用模型名称，会被传递给后端 API 的 `model` 字段 |
-| `openclawGatewayUrl` | `string` | 否 | `http://127.0.0.1:18789` | OpenClaw Gateway 地址，用于浏览器、搜索、文件系统、GitHub、MCP 工具扩展 |
-| `openclawApiKey` | `string` | 否 | `""` | OpenClaw Gateway 可选认证密钥 |
-| `mcpEndpoint` | `string` | 否 | `""` | MCP（Model Context Protocol）远程服务端点。留空时 MCP Gateway 仅使用本地 Mock 工具 |
-| `memoryNamespace` | `string` | 否 | `content-x-memory` | Checkpointer 和 AgentMemory 的命名空间标识，用于隔离不同实例的记忆数据 |
+| `apiKey` | `string` | 是 | `""` | 唯一暴露给普通用户填写的 DeepSeek API Key |
+| `provider` | `string` | 固定 | `deepseek` | V1 内部固定，不出现在普通用户设置页 |
+| `apiBaseUrl` | `string` | 固定 | `https://api.deepseek.com` | V1 内部固定，不出现在普通用户设置页 |
+| `model` | `string` | 固定 | `deepseek-chat` | V1 内部固定，不出现在普通用户设置页 |
+| `openclawGatewayUrl` | `string` | 固定 | `http://127.0.0.1:18789` | V1 内部固定，不出现在普通用户设置页 |
+| `mcpEndpoint` | `string` | 固定 | `http://127.0.0.1:8790/mcp` | V1 内部固定，不出现在普通用户设置页 |
+| `memoryNamespace` | `string` | 固定 | `content-x-memory` | V1 内部固定，不出现在普通用户设置页 |
 
 ### 2.2 DeepSeek 配置
 
-在应用左下角账号菜单进入 **设置**：
+在应用左下角账号菜单进入 **设置**，普通用户只需要填写：
 
 ```text
-Provider: DeepSeek
-API Base URL: https://api.deepseek.com
-Model: deepseek-chat
 API Key: 用户自己的 DeepSeek API Key
 ```
 
@@ -109,12 +105,11 @@ openclaw onboard --install-daemon
 openclaw gateway status
 ```
 
-Content X 中配置：
+Content X V1 内部固定配置：
 
 ```text
-Provider: OpenClaw Gateway
 OpenClaw Gateway: http://127.0.0.1:18789
-MCP Endpoint: 如 OpenClaw 单独暴露 MCP endpoint，则填入该地址
+MCP Endpoint: http://127.0.0.1:8790/mcp
 ```
 
 OpenClaw 后端层目标能力：

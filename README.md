@@ -59,13 +59,20 @@ The backend design is inspired by graph-based agent runtimes such as LangGraph, 
 
 ## Configure DeepSeek
 
-Open `个人帐户 -> 设置` in the app and use:
+Open `个人帐户 -> 设置` in the app and paste only your DeepSeek API Key.
 
 ```text
-Provider: DeepSeek
+API Key: your DeepSeek API key
+```
+
+The V1 frontend intentionally hides internal settings from ordinary users. Content X uses these fixed internal values:
+
+```text
 API Base URL: https://api.deepseek.com
 Model: deepseek-chat
-API Key: your DeepSeek API key
+OpenClaw Gateway: http://127.0.0.1:18789
+MCP Endpoint: http://127.0.0.1:8790/mcp
+Memory Namespace: content-x-memory
 ```
 
 Do not commit API keys to this repository. Keys are stored only in the local app settings.
@@ -89,13 +96,7 @@ openclaw onboard --install-daemon
 openclaw gateway status
 ```
 
-Then configure Content X:
-
-```text
-Provider: OpenClaw Gateway
-OpenClaw Gateway: http://127.0.0.1:18789
-MCP Endpoint: your OpenClaw MCP endpoint if exposed separately
-```
+Content X V1 keeps the OpenClaw Gateway and MCP endpoint as fixed internal backend configuration, not user-facing settings.
 
 ## Current Scope
 
@@ -109,7 +110,7 @@ MCP Endpoint: your OpenClaw MCP endpoint if exposed separately
 - Markdown document preview
 - Article publish handoff and video-script export
 - Account menu with login, profile, settings, invite, quota, and logout states
-- Backend API settings for provider, API base URL, API key, model, OpenClaw Gateway, MCP endpoint, and memory namespace
+- User-facing settings only expose DeepSeek API Key; backend endpoints and namespaces are fixed internally
 - Electron desktop packaging for macOS and Windows
 
 ## Run Locally

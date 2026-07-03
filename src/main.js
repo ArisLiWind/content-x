@@ -152,51 +152,14 @@ function renderSettingsPanel() {
       </div>
       <form class="account-form" data-action="save-backend-config">
         <label>
-          Provider
-          <select name="provider">
-            ${renderProviderOption("local", "Local Mock")}
-            ${renderProviderOption("deepseek", "DeepSeek")}
-            ${renderProviderOption("openai", "OpenAI Compatible")}
-            ${renderProviderOption("openclaw", "OpenClaw Gateway")}
-          </select>
-        </label>
-        <label>
-          API Base URL
-          <input name="apiBaseUrl" value="${escapeHtml(store.backendConfig.apiBaseUrl)}" placeholder="https://api.deepseek.com" />
-        </label>
-        <label>
-          API Key
+          DeepSeek API Key
           <input name="apiKey" value="${escapeHtml(store.backendConfig.apiKey)}" placeholder="sk-..." autocomplete="off" />
-        </label>
-        <label>
-          Model
-          <input name="model" value="${escapeHtml(store.backendConfig.model)}" placeholder="deepseek-chat" />
-        </label>
-        <label>
-          OpenClaw Gateway
-          <input name="openclawGatewayUrl" value="${escapeHtml(store.backendConfig.openclawGatewayUrl)}" placeholder="http://127.0.0.1:18789" />
-        </label>
-        <label>
-          OpenClaw API Key
-          <input name="openclawApiKey" value="${escapeHtml(store.backendConfig.openclawApiKey)}" placeholder="本地网关可留空" autocomplete="off" />
-        </label>
-        <label>
-          MCP Endpoint
-          <input name="mcpEndpoint" value="${escapeHtml(store.backendConfig.mcpEndpoint)}" placeholder="http://127.0.0.1:8790/mcp" />
-        </label>
-        <label>
-          Memory Namespace
-          <input name="memoryNamespace" value="${escapeHtml(store.backendConfig.memoryNamespace)}" />
         </label>
         <button class="account-primary" type="submit">保存配置</button>
       </form>
       ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
     </div>
   `;
-}
-
-function renderProviderOption(value, label) {
-  return `<option value="${value}" ${store.backendConfig.provider === value ? "selected" : ""}>${label}</option>`;
 }
 
 function renderSimpleAccountPanel(title, body) {
@@ -465,16 +428,9 @@ function bindEvents() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     store.backendConfig = saveBackendConfig({
-      provider: form.get("provider"),
-      apiBaseUrl: form.get("apiBaseUrl"),
-      apiKey: form.get("apiKey"),
-      model: form.get("model"),
-      openclawGatewayUrl: form.get("openclawGatewayUrl"),
-      openclawApiKey: form.get("openclawApiKey"),
-      mcpEndpoint: form.get("mcpEndpoint"),
-      memoryNamespace: form.get("memoryNamespace")
+      apiKey: form.get("apiKey")
     });
-    store.accountNotice = "后端 API 配置已保存。";
+    store.accountNotice = "DeepSeek API Key 已保存。";
     render();
   });
 
