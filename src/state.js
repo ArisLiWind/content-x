@@ -15,6 +15,14 @@ export function createTaskState(userInput) {
   return {
     taskId: crypto.randomUUID(),
     userInput,
+    messages: [
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: userInput,
+        createdAt: now
+      }
+    ],
     status: WORKFLOW_STATUS.IDLE,
     topic: {
       raw: userInput,

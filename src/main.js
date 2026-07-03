@@ -152,8 +152,17 @@ function renderSettingsPanel() {
       </div>
       <form class="account-form" data-action="save-backend-config">
         <label>
+          Provider
+          <select name="provider">
+            ${renderProviderOption("local", "Local Mock")}
+            ${renderProviderOption("deepseek", "DeepSeek")}
+            ${renderProviderOption("openai", "OpenAI Compatible")}
+            ${renderProviderOption("openclaw", "OpenClaw Gateway")}
+          </select>
+        </label>
+        <label>
           API Base URL
-          <input name="apiBaseUrl" value="${escapeHtml(store.backendConfig.apiBaseUrl)}" placeholder="http://127.0.0.1:8787" />
+          <input name="apiBaseUrl" value="${escapeHtml(store.backendConfig.apiBaseUrl)}" placeholder="https://api.deepseek.com" />
         </label>
         <label>
           API Key
@@ -161,7 +170,15 @@ function renderSettingsPanel() {
         </label>
         <label>
           Model
-          <input name="model" value="${escapeHtml(store.backendConfig.model)}" placeholder="gpt-5" />
+          <input name="model" value="${escapeHtml(store.backendConfig.model)}" placeholder="deepseek-chat" />
+        </label>
+        <label>
+          OpenClaw Gateway
+          <input name="openclawGatewayUrl" value="${escapeHtml(store.backendConfig.openclawGatewayUrl)}" placeholder="http://127.0.0.1:18789" />
+        </label>
+        <label>
+          OpenClaw API Key
+          <input name="openclawApiKey" value="${escapeHtml(store.backendConfig.openclawApiKey)}" placeholder="本地网关可留空" autocomplete="off" />
         </label>
         <label>
           MCP Endpoint
@@ -176,6 +193,10 @@ function renderSettingsPanel() {
       ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
     </div>
   `;
+}
+
+function renderProviderOption(value, label) {
+  return `<option value="${value}" ${store.backendConfig.provider === value ? "selected" : ""}>${label}</option>`;
 }
 
 function renderSimpleAccountPanel(title, body) {
@@ -201,6 +222,8 @@ function renderSearchBox() {
 
 function renderMainPanel(task) {
   const defaultPrompt = "分析今天最重要的 AI 技术进展，并生成一篇文章和视频剧本。";
+  const composerValue = task ? "" : defaultPrompt;
+  const composerPlaceholder = task ? "继续输入，修改当前文件" : "随心输入";
 
   return `
     <section class="main-panel">
@@ -213,9 +236,9 @@ function renderMainPanel(task) {
 
       <div class="composer-wrap">
         <form class="goal-form composer" data-action="run-task">
-          <textarea name="goal" rows="3" placeholder="随心输入">${escapeHtml(displayText(task?.userInput || defaultPrompt))}</textarea>
+          <textarea name="goal" rows="3" placeholder="${composerPlaceholder}">${escapeHtml(displayText(composerValue))}</textarea>
           <div class="composer-actions">
-            <span class="composer-meta">${task ? "新任务会创建一条新的内容线程" : "Content X / local"}</span>
+            <span class="composer-meta">${task ? "继续当前对话并更新右侧文件" : "Content X / local"}</span>
             <button ${store.isRunning ? "disabled" : ""} type="submit">↑</button>
           </div>
         </form>
@@ -229,14 +252,25 @@ function renderMainPanel(task) {
 }
 
 function renderConversation(task) {
+  const messages = task.messages?.length
+    ? task.messages
+    : [{ id: "initial", role: "user", content: task.userInput }];
+
   return `
     <section class="conversation">
-      <article class="message user-message">
-        <p>${escapeHtml(displayText(task.userInput))}</p>
-      </article>
+      ${messages.map(renderMessage).join("")}
       ${renderProgress(task)}
       ${renderWaitingState(task)}
     </section>
+  `;
+}
+
+function renderMessage(message) {
+  const isUser = message.role === "user";
+  return `
+    <article class="message ${isUser ? "user-message" : "assistant-message"}">
+      <p>${escapeHtml(displayText(message.content))}</p>
+    </article>
   `;
 }
 
@@ -431,9 +465,12 @@ function bindEvents() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     store.backendConfig = saveBackendConfig({
+      provider: form.get("provider"),
       apiBaseUrl: form.get("apiBaseUrl"),
       apiKey: form.get("apiKey"),
       model: form.get("model"),
+      openclawGatewayUrl: form.get("openclawGatewayUrl"),
+      openclawApiKey: form.get("openclawApiKey"),
       mcpEndpoint: form.get("mcpEndpoint"),
       memoryNamespace: form.get("memoryNamespace")
     });
@@ -505,9 +542,7 @@ function bindEvents() {
     const goal = new FormData(event.currentTarget).get("goal").toString().trim();
     if (!goal) return;
 
-    const task = createTaskState(goal);
-    store.activeTaskId = task.taskId;
-    upsertTask(task);
+    const activeTask = getActiveTask();
     store.isRunning = true;
     render();
 
@@ -525,7 +560,14 @@ function bindEvents() {
     );
 
     try {
-      await harness.run(task);
+      if (activeTask) {
+        await harness.continueConversation(activeTask, goal);
+      } else {
+        const task = createTaskState(goal);
+        store.activeTaskId = task.taskId;
+        upsertTask(task);
+        await harness.run(task);
+      }
     } finally {
       store.isRunning = false;
       persistTasks();

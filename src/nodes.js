@@ -138,8 +138,10 @@ export const nodes = {
     };
   },
 
-  async generateDraft(state) {
-    const markdown = buildDraft(state);
+  async generateDraft(state, context) {
+    const fallbackMarkdown = buildDraft(state);
+    const modelMarkdown = await generateModelDraft(state, context, fallbackMarkdown);
+    const markdown = modelMarkdown || fallbackMarkdown;
     return {
       draft: {
         ...state.draft,
@@ -256,6 +258,33 @@ export const nodes = {
     };
   }
 };
+
+async function generateModelDraft(state, context, fallbackMarkdown) {
+  if (!context.model?.configured) return "";
+
+  const result = await context.model.chat({
+    system: "你是 Content X 的中文内容创作 Agent。只输出完整 Markdown 正文，不要解释过程。文章要有清晰标题、结构、观点和事实边界。",
+    messages: [
+      {
+        role: "user",
+        content: `用户目标：${state.userInput}
+
+资料：
+${state.sources.map((source) => `- ${source.title}: ${source.summary}`).join("\n")}
+
+大纲：
+${state.outline.sections.map((section) => `- ${section.heading}: ${section.points.join(" / ")}`).join("\n")}
+
+请基于资料和大纲生成一篇可预览的中文 Markdown 文章。可参考但不要机械复制这个本地草稿：
+
+${fallbackMarkdown}`
+      }
+    ],
+    temperature: 0.7
+  });
+
+  return result.ok ? result.text.trim() : "";
+}
 
 export function isResearchEnough(state) {
   const confidence = average(state.facts.map((fact) => fact.confidence));

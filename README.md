@@ -26,6 +26,8 @@ The current desktop builds are unsigned local-preview builds. On macOS, you may 
 - Uses planning, research loops, review loops, human approval, and publishing handoff
 - Shows a Codex-style three-column workspace: tasks, interaction, file preview
 - Supports local account state and backend API configuration
+- Supports DeepSeek and OpenAI-compatible model configuration
+- Provides an OpenClaw Gateway adapter for browser/search/MCP-backed tools
 - Exports video scripts and prepares article publishing drafts
 - Keeps state, memory, virtual files, and checkpoints inside the Agent Harness
 
@@ -55,6 +57,46 @@ The backend design is inspired by graph-based agent runtimes such as LangGraph, 
 
 - [Backend API and Agent Scheduling](docs/backend-api-agent-scheduling.md)
 
+## Configure DeepSeek
+
+Open `个人帐户 -> 设置` in the app and use:
+
+```text
+Provider: DeepSeek
+API Base URL: https://api.deepseek.com
+Model: deepseek-chat
+API Key: your DeepSeek API key
+```
+
+Do not commit API keys to this repository. Keys are stored only in the local app settings.
+
+## OpenClaw Backend Direction
+
+Content X is designed to use OpenClaw as the local backend gateway for high-quality external information access:
+
+- Browser control through CDP / Playwright
+- Web search MCP
+- Browser MCP
+- GitHub MCP
+- Filesystem MCP
+- Workspace skills with `SKILL.md` and `handler.ts`
+
+Recommended OpenClaw setup:
+
+```bash
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+openclaw gateway status
+```
+
+Then configure Content X:
+
+```text
+Provider: OpenClaw Gateway
+OpenClaw Gateway: http://127.0.0.1:18789
+MCP Endpoint: your OpenClaw MCP endpoint if exposed separately
+```
+
 ## Current Scope
 
 - Three-column minimal dark workspace
@@ -67,7 +109,7 @@ The backend design is inspired by graph-based agent runtimes such as LangGraph, 
 - Markdown document preview
 - Article publish handoff and video-script export
 - Account menu with login, profile, settings, invite, quota, and logout states
-- Backend API settings for API base URL, API key, model, MCP endpoint, and memory namespace
+- Backend API settings for provider, API base URL, API key, model, OpenClaw Gateway, MCP endpoint, and memory namespace
 - Electron desktop packaging for macOS and Windows
 
 ## Run Locally

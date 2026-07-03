@@ -62,9 +62,12 @@ Content Agent
 
 ```js
 export const DEFAULT_BACKEND_CONFIG = {
-  apiBaseUrl:       "http://127.0.0.1:8787",        // 后端 API 基础地址
+  provider:         "local",                         // local / deepseek / openai / openclaw
+  apiBaseUrl:       "https://api.deepseek.com",      // OpenAI-compatible API 基础地址
   apiKey:           "",                               // API 认证密钥
-  model:            "gpt-5",                          // 模型标识符
+  model:            "deepseek-chat",                  // 模型标识符
+  openclawGatewayUrl: "http://127.0.0.1:18789",       // OpenClaw Gateway
+  openclawApiKey:   "",                               // OpenClaw Gateway 可选认证
   mcpEndpoint:      "",                               // MCP 服务端点
   memoryNamespace:  "content-x-memory"                // 记忆命名空间
 };
@@ -74,13 +77,53 @@ export const DEFAULT_BACKEND_CONFIG = {
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `apiBaseUrl` | `string` | 是 | `http://127.0.0.1:8787` | 后端 LLM API 的基础 URL，所有模型调用请求均以此为前缀 |
+| `provider` | `string` | 是 | `local` | 模型/后端提供方：`local`、`deepseek`、`openai`、`openclaw` |
+| `apiBaseUrl` | `string` | 是 | `https://api.deepseek.com` | OpenAI-compatible LLM API 基础 URL |
 | `apiKey` | `string` | 建议 | `""` | API 认证密钥。V1 为本地预览模式，不填时可运行但无实际模型调用；连接正式后端时必须填写 |
-| `model` | `string` | 是 | `gpt-5` | 调用模型名称，会被传递给后端 API 的 `model` 字段 |
+| `model` | `string` | 是 | `deepseek-chat` | 调用模型名称，会被传递给后端 API 的 `model` 字段 |
+| `openclawGatewayUrl` | `string` | 否 | `http://127.0.0.1:18789` | OpenClaw Gateway 地址，用于浏览器、搜索、文件系统、GitHub、MCP 工具扩展 |
+| `openclawApiKey` | `string` | 否 | `""` | OpenClaw Gateway 可选认证密钥 |
 | `mcpEndpoint` | `string` | 否 | `""` | MCP（Model Context Protocol）远程服务端点。留空时 MCP Gateway 仅使用本地 Mock 工具 |
 | `memoryNamespace` | `string` | 否 | `content-x-memory` | Checkpointer 和 AgentMemory 的命名空间标识，用于隔离不同实例的记忆数据 |
 
-#### 2.1.3 配置持久化流程
+### 2.2 DeepSeek 配置
+
+在应用左下角账号菜单进入 **设置**：
+
+```text
+Provider: DeepSeek
+API Base URL: https://api.deepseek.com
+Model: deepseek-chat
+API Key: 用户自己的 DeepSeek API Key
+```
+
+Content X 使用 OpenAI-compatible `/chat/completions` 形式调用模型。API Key 只保存在本地 `localStorage`，不要写入源码、README 或 GitHub Release。
+
+### 2.3 OpenClaw 后端配置
+
+OpenClaw 作为本地 Gateway，负责外部高质量信息访问和工具扩展。建议安装方式：
+
+```bash
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+openclaw gateway status
+```
+
+Content X 中配置：
+
+```text
+Provider: OpenClaw Gateway
+OpenClaw Gateway: http://127.0.0.1:18789
+MCP Endpoint: 如 OpenClaw 单独暴露 MCP endpoint，则填入该地址
+```
+
+OpenClaw 后端层目标能力：
+
+- Browser/CDP/Playwright：打开网页、点击 DOM、填表、读取页面、截图
+- MCP Tool Layer：web search MCP、browser MCP、GitHub MCP、filesystem MCP
+- Skill System：`skill/SKILL.md` + `handler.ts`
+
+### 2.4 配置持久化流程
 
 ```text
 用户填写设置表单
@@ -93,7 +136,7 @@ export const DEFAULT_BACKEND_CONFIG = {
       → MemoryCheckpointer 接收 namespace
 ```
 
-#### 2.1.4 配置读取流程
+### 2.5 配置读取流程
 
 ```text
 loadBackendConfig()
@@ -102,7 +145,7 @@ loadBackendConfig()
     → 返回完整配置对象
 ```
 
-### 2.2 账号配置
+### 2.6 账号配置
 
 账号状态独立于后端 API 配置，通过 `content-x-account-session` key 存储。
 

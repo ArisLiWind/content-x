@@ -92,19 +92,33 @@ export class WorkflowHarness {
 
   async applyNaturalLanguageRevision(initialState, instruction) {
     let state = appendLog(initialState, `User requested revision: ${instruction}`);
-    const revised = `${state.draft.markdown}
+    const revised = await this.rewriteDraft(state, instruction);
 
-## 根据自然语言反馈修改
-
-修改要求：${instruction}
-
-已按要求重新整理表达，后续真实 Agent 可在这里调用模型完成更精细的语义改写。`;
+    const now = new Date().toISOString();
 
     state = applyStatePatch(state, {
       status: WORKFLOW_STATUS.WAITING_APPROVAL,
+      messages: [
+        ...(state.messages || []),
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: instruction,
+          createdAt: now
+        },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: this.context.model.configured
+            ? `已使用 ${this.context.model.providerLabel} 修改右侧文件。`
+            : "已在当前对话中修改右侧文件。",
+          createdAt: new Date().toISOString()
+        }
+      ],
       draft: {
         ...state.draft,
         markdown: revised,
+        variants: updateDraftVariants(state.draft.variants, revised),
         currentVersion: state.draft.currentVersion + 1,
         editHistory: [
           ...state.draft.editHistory,
@@ -121,6 +135,35 @@ export class WorkflowHarness {
     this.context.memory.rememberTask(state, "document.revised");
     this.emit(state);
     return state;
+  }
+
+  async continueConversation(initialState, instruction) {
+    return this.applyNaturalLanguageRevision(initialState, instruction);
+  }
+
+  async rewriteDraft(state, instruction) {
+    if (this.context.model.configured && state.draft.markdown) {
+      const result = await this.context.model.chat({
+        system: "你是 Content X 的内容编辑 Agent。只输出完整 Markdown 正文，不要解释过程。根据用户新要求改写现有文章，保留事实边界、标题结构和可发布性。",
+        messages: [
+          {
+            role: "user",
+            content: `现有文章：\n\n${state.draft.markdown}\n\n用户新要求：${instruction}\n\n请返回修改后的完整 Markdown。`
+          }
+        ],
+        temperature: 0.6
+      });
+
+      if (result.ok && result.text.trim()) return result.text.trim();
+    }
+
+    return `${state.draft.markdown}
+
+## 根据对话继续修改
+
+修改要求：${instruction}
+
+已在当前对话中保留原有文章结构，并按新要求继续调整。连接 DeepSeek 或 OpenClaw 后，这里会由模型完成更细的语义改写。`;
   }
 
   async runResearchLoop(initialState) {
@@ -184,4 +227,26 @@ export class WorkflowHarness {
   emit(state) {
     this.onStateChange(structuredClone(state));
   }
+}
+
+function updateDraftVariants(variants = [], markdown) {
+  if (!variants.length) {
+    return [
+      {
+        platform: "wechat",
+        title: "当前文章",
+        markdown,
+        metadata: { tone: "持续对话修改", audience: "内容读者" }
+      }
+    ];
+  }
+
+  return variants.map((variant) => (
+    variant.platform === "wechat" || variant.platform === "markdown"
+      ? {
+          ...variant,
+          markdown
+        }
+      : variant
+  ));
 }

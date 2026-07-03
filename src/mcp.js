@@ -14,6 +14,7 @@ export class McpGateway {
       backend: {
         apiBaseUrl: this.backendConfig.apiBaseUrl || "",
         mcpEndpoint: this.backendConfig.mcpEndpoint || "",
+        openclawGatewayUrl: this.backendConfig.openclawGatewayUrl || "",
         model: this.backendConfig.model || "",
         hasApiKey: Boolean(this.backendConfig.apiKey)
       },

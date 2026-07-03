@@ -31,7 +31,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -360,6 +361,17 @@ input:disabled {
 }
 
 .account-form input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  font: inherit;
+}
+
+.account-form select {
   width: 100%;
   min-height: 32px;
   padding: 0 11px;
