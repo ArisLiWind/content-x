@@ -15,7 +15,6 @@ export const DEFAULT_BACKEND_CONFIG = {
   model: "deepseek-chat",
   openclawGatewayUrl: "http://127.0.0.1:18789",
   openclawApiKey: "",
-  mcpEndpoint: "http://127.0.0.1:8790/mcp",
   memoryNamespace: "content-x-memory"
 };
 

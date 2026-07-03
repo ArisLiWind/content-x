@@ -70,7 +70,6 @@ The V1 frontend intentionally hides internal settings from ordinary users. Conte
 API Base URL: https://api.deepseek.com
 Model: deepseek-chat
 OpenClaw Gateway: http://127.0.0.1:18789
-MCP Endpoint: http://127.0.0.1:8790/mcp
 Memory Namespace: content-x-memory
 ```
 
@@ -81,11 +80,12 @@ Do not commit API keys to this repository. Keys are stored only in the local app
 Content X is designed to use OpenClaw as the local backend gateway for high-quality external information access:
 
 - Browser control through CDP / Playwright
-- Web search MCP
-- Browser MCP
-- GitHub MCP
-- Filesystem MCP
+- Web search, browser, GitHub, filesystem, and workspace tools through OpenClaw
 - Workspace skills with `SKILL.md` and `handler.ts`
+
+Official upstream:
+
+- [openclaw/openclaw](https://github.com/openclaw/openclaw)
 
 Recommended OpenClaw setup:
 
@@ -95,17 +95,10 @@ openclaw onboard --install-daemon
 openclaw gateway status
 ```
 
-Content X V1 keeps the OpenClaw Gateway and MCP endpoint as fixed internal backend configuration, not user-facing settings.
-
-The OpenClaw MCP bridge is tracked as a backend integration target:
-
-- Upstream: [freema/openclaw-mcp](https://github.com/freema/openclaw-mcp)
-- Fork: [ArisLiWind/openclaw-mcp](https://github.com/ArisLiWind/openclaw-mcp)
-
-Start the Content X MCP bridge after the OpenClaw Gateway is running:
+Foreground/debug mode:
 
 ```bash
-npm run backend:openclaw:mcp
+npm run backend:openclaw:gateway
 ```
 
 Check local backend reachability:
@@ -114,7 +107,7 @@ Check local backend reachability:
 npm run backend:openclaw:check
 ```
 
-When the MCP bridge is reachable, `research.search` routes through `openclaw_chat`; if the bridge is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
+Content X V1 keeps the OpenClaw Gateway as fixed internal backend configuration, not a user-facing setting. When the Gateway is reachable, `research.search` routes through OpenClaw's OpenAI-compatible chat endpoint; if the Gateway is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
 
 ## Current Scope
 
@@ -124,7 +117,7 @@ When the MCP bridge is reachable, `research.search` routes through `openclaw_cha
 - Agent execution panel with lifecycle, loop, and node logs
 - LangGraph-inspired `StateGraph`, `AgentLoopRunner`, `ChannelSet`, and `MemoryCheckpointer`
 - MCP-ready local tool router
-- OpenClaw MCP bridge scripts and `research.search` fallback routing
+- Official OpenClaw Gateway check script and `research.search` fallback routing
 - Local memory and virtual filesystem
 - Markdown document preview
 - Article publish handoff and video-script export

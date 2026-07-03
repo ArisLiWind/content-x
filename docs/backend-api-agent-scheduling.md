@@ -68,7 +68,6 @@ export const DEFAULT_BACKEND_CONFIG = {
   model:            "deepseek-chat",                  // 模型标识符
   openclawGatewayUrl: "http://127.0.0.1:18789",       // OpenClaw Gateway
   openclawApiKey:   "",                               // V1 不暴露到普通用户设置页
-  mcpEndpoint:      "http://127.0.0.1:8790/mcp",      // MCP 服务端点
   memoryNamespace:  "content-x-memory"                // 记忆命名空间
 };
 ```
@@ -82,7 +81,6 @@ export const DEFAULT_BACKEND_CONFIG = {
 | `apiBaseUrl` | `string` | 固定 | `https://api.deepseek.com` | V1 内部固定，不出现在普通用户设置页 |
 | `model` | `string` | 固定 | `deepseek-chat` | V1 内部固定，不出现在普通用户设置页 |
 | `openclawGatewayUrl` | `string` | 固定 | `http://127.0.0.1:18789` | V1 内部固定，不出现在普通用户设置页 |
-| `mcpEndpoint` | `string` | 固定 | `http://127.0.0.1:8790/mcp` | V1 内部固定，不出现在普通用户设置页 |
 | `memoryNamespace` | `string` | 固定 | `content-x-memory` | V1 内部固定，不出现在普通用户设置页 |
 
 ### 2.2 DeepSeek 配置
@@ -109,21 +107,27 @@ Content X V1 内部固定配置：
 
 ```text
 OpenClaw Gateway: http://127.0.0.1:18789
-MCP Endpoint: http://127.0.0.1:8790/mcp
 ```
 
-OpenClaw MCP bridge：
+官方 OpenClaw 后端：
 
 ```text
-Upstream: https://github.com/freema/openclaw-mcp
-Fork: https://github.com/ArisLiWind/openclaw-mcp
-Local bridge folder: backend/openclaw-mcp
+Upstream: https://github.com/openclaw/openclaw
+Local backend folder: backend/openclaw
 ```
 
-启动本地 MCP bridge：
+启动官方 OpenClaw Gateway：
 
 ```bash
-npm run backend:openclaw:mcp
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+openclaw gateway status
+```
+
+前台调试模式：
+
+```bash
+npm run backend:openclaw:gateway
 ```
 
 健康检查：
@@ -132,12 +136,12 @@ npm run backend:openclaw:mcp
 npm run backend:openclaw:check
 ```
 
-`src/mcp.js` 中的 `McpGateway` 会在 `research.search` 阶段优先调用 `openclaw_chat`。如果 MCP bridge 不可达或超时，则回退到 `src/tools.js` 中的本地 V1 research adapter，保证前端体验不中断。
+`src/mcp.js` 中的 `McpGateway` 会在 `research.search` 阶段优先调用 `src/openclaw.js` 的 `OpenClawGateway`，通过官方 Gateway 的 OpenAI-compatible `/v1/chat/completions` 路径获得研究结果。如果 Gateway 不可达或超时，则回退到 `src/tools.js` 中的本地 V1 research adapter，保证前端体验不中断。
 
 OpenClaw 后端层目标能力：
 
 - Browser/CDP/Playwright：打开网页、点击 DOM、填表、读取页面、截图
-- MCP Tool Layer：web search MCP、browser MCP、GitHub MCP、filesystem MCP
+- Tool Layer：web search、browser、GitHub、filesystem 等能力由官方 OpenClaw 后端承接；Content X 内部保留 MCP-style 工具路由抽象
 - Skill System：`skill/SKILL.md` + `handler.ts`
 
 ### 2.4 配置持久化流程
