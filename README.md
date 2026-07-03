@@ -57,6 +57,29 @@ The backend design is inspired by graph-based agent runtimes such as LangGraph, 
 
 - [Backend API and Agent Scheduling](docs/backend-api-agent-scheduling.md)
 - [OpenClaw on Google Cloud](docs/openclaw-google-cloud.md)
+- [Aliyun ECS Writing Agent](docs/aliyun-ecs-writing-agent.md)
+
+## Simple Persistent Writing Backend
+
+For the current product goal, Content X provides a simple persistent writing backend:
+
+```text
+User input -> DeepSeek -> MySQL -> same task can continue editing
+```
+
+APIs:
+
+- `POST /task`
+- `GET /task/:id`
+- `POST /task/:id/continue`
+
+Run:
+
+```bash
+npm run writing-agent:start
+```
+
+Implementation: [backend/writing-agent](backend/writing-agent/README.md)
 
 ## Configure DeepSeek
 

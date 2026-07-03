@@ -14,7 +14,8 @@
     "backend:start": "node backend/contentx/server.mjs",
     "backend:deepseek:test": "node backend/contentx/deepseek-test.mjs",
     "backend:openclaw:check": "node backend/openclaw/check.mjs",
-    "check": "node --check src/main.js && node --check src/backend.js && node --check src/harness.js && node --check src/runtime.js && node --check src/llm.js && node --check src/openclaw.js && node --check src/agent-graph.js && node --check src/agent-loop.js && node --check src/channels.js && node --check src/checkpoint.js && node --check src/planning.js && node --check src/mcp.js && node --check src/memory.js && node --check src/filesystem.js && node --check src/document.js && node --check src/nodes.js && node --check src/state.js && node --check src/tools.js && node --check src/publishers.js && node --check src/markdown.js && node --check backend/openclaw/check.mjs && node --check backend/contentx/config.mjs && node --check backend/contentx/deepseek.mjs && node --check backend/contentx/openclaw.mjs && node --check backend/contentx/server.mjs && node --check backend/contentx/deepseek-test.mjs"
+    "writing-agent:start": "node backend/writing-agent/server.mjs",
+    "check": "node --check src/main.js && node --check src/backend.js && node --check src/harness.js && node --check src/runtime.js && node --check src/llm.js && node --check src/openclaw.js && node --check src/agent-graph.js && node --check src/agent-loop.js && node --check src/channels.js && node --check src/checkpoint.js && node --check src/planning.js && node --check src/mcp.js && node --check src/memory.js && node --check src/filesystem.js && node --check src/document.js && node --check src/nodes.js && node --check src/state.js && node --check src/tools.js && node --check src/publishers.js && node --check src/markdown.js && node --check backend/openclaw/check.mjs && node --check backend/contentx/config.mjs && node --check backend/contentx/deepseek.mjs && node --check backend/contentx/openclaw.mjs && node --check backend/contentx/server.mjs && node --check backend/contentx/deepseek-test.mjs && node --check backend/writing-agent/config.mjs && node --check backend/writing-agent/db.mjs && node --check backend/writing-agent/deepseek.mjs && node --check backend/writing-agent/server.mjs"
   },
   "keywords": [
     "ai-agent",
@@ -55,5 +56,8 @@
         "portable"
       ]
     }
+  },
+  "dependencies": {
+    "mysql2": "^3.22.5"
   }
 }
