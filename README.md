@@ -56,6 +56,7 @@ The backend design is inspired by graph-based agent runtimes such as LangGraph, 
 ## Documentation
 
 - [Backend API and Agent Scheduling](docs/backend-api-agent-scheduling.md)
+- [OpenClaw on Google Cloud](docs/openclaw-google-cloud.md)
 
 ## Configure DeepSeek
 
@@ -83,7 +84,8 @@ The V1 frontend intentionally hides internal settings from ordinary users. Conte
 ```text
 API Base URL: https://api.deepseek.com
 Model: deepseek-chat
-OpenClaw Gateway: http://127.0.0.1:18789
+OpenClaw Mode: embedded
+MCP Endpoint: http://127.0.0.1:8788/mcp
 Memory Namespace: content-x-memory
 ```
 
@@ -91,28 +93,28 @@ Do not commit API keys to this repository. Keys are stored only in the local app
 
 ## OpenClaw Backend Direction
 
-Content X is designed to use OpenClaw as the local backend gateway for high-quality external information access:
+Content X embeds an OpenClaw-compatible backend layer for high-quality content-agent execution:
 
 - Browser control through CDP / Playwright
-- Web search, browser, GitHub, filesystem, and workspace tools through OpenClaw
+- MCP-style tool sharing for research, memory, filesystem, document, and publisher handoff
+- Optional remote OpenClaw deployment through `OPENCLAW_REMOTE_URL`
 - Workspace skills with `SKILL.md` and `handler.ts`
 
 Official upstream:
 
 - [openclaw/openclaw](https://github.com/openclaw/openclaw)
 
-Recommended OpenClaw setup:
+Content X does not require your local OpenClaw CLI or local Gateway. For a cloud/self-hosted OpenClaw backend, deploy OpenClaw separately and point Content X to it:
 
 ```bash
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-openclaw gateway status
+export OPENCLAW_REMOTE_URL=https://your-openclaw-backend.example.com
+npm run backend:start
 ```
 
-Foreground/debug mode:
+Check the embedded backend:
 
 ```bash
-npm run backend:openclaw:gateway
+npm run backend:openclaw:check
 ```
 
 Check local backend reachability:
@@ -121,7 +123,7 @@ Check local backend reachability:
 npm run backend:openclaw:check
 ```
 
-Content X V1 keeps the OpenClaw Gateway as fixed internal backend configuration, not a user-facing setting. When the Gateway is reachable, `research.search` routes through OpenClaw's OpenAI-compatible chat endpoint; if the Gateway is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
+Content X V1 keeps OpenClaw, MCP, Memory, and Filesystem as backend-internal capabilities. The account menu includes a read-only backend status panel so users can see what is available without editing internal endpoints.
 
 ## Local Backend Service
 
@@ -140,6 +142,7 @@ http://127.0.0.1:8788
 Backend routes:
 
 - `GET /health` checks DeepSeek key presence and OpenClaw Gateway reachability
+- `POST /deepseek/chat` lets the middle Content X conversation call DeepSeek through the local backend
 - `POST /deepseek/test` confirms DeepSeek can respond
 - `POST /agent/research` routes research through OpenClaw first, then DeepSeek fallback
 
@@ -151,7 +154,7 @@ Backend routes:
 - Agent execution panel with lifecycle, loop, and node logs
 - LangGraph-inspired `StateGraph`, `AgentLoopRunner`, `ChannelSet`, and `MemoryCheckpointer`
 - MCP-ready local tool router
-- Official OpenClaw Gateway check script and `research.search` fallback routing
+- Embedded OpenClaw-compatible backend with MCP tools and `research.search` fallback routing
 - Local Node backend service for health, DeepSeek test, and research routing
 - Local memory and virtual filesystem
 - IndexedDB-first frontend database with localStorage fallback

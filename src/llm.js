@@ -26,22 +26,43 @@ export class ModelClient {
       };
     }
 
+    if (this.config.provider === "deepseek") {
+      const proxied = await this.chatViaContentXBackend({ system, messages, temperature });
+      if (proxied.ok || proxied.error !== "Content X backend is unavailable.") return proxied;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     const url = `${normalizeBaseUrl(this.config.apiBaseUrl)}/chat/completions`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        temperature,
-        messages: [
-          ...(system ? [{ role: "system", content: system }] : []),
-          ...messages
-        ]
-      })
-    });
+    let response;
+
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: this.config.model,
+          temperature,
+          messages: [
+            ...(system ? [{ role: "system", content: system }] : []),
+            ...messages
+          ]
+        })
+      });
+    } catch (error) {
+      clearTimeout(timeout);
+      return {
+        ok: false,
+        provider: this.providerLabel,
+        error: error.name === "AbortError" ? "Model API timed out." : error.message
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       return {
@@ -58,8 +79,60 @@ export class ModelClient {
       text: data.choices?.[0]?.message?.content || ""
     };
   }
+
+  async chatViaContentXBackend({ system, messages, temperature }) {
+    const backendUrl = "http://127.0.0.1:8788/deepseek/chat";
+    const payloadMessages = [
+      ...(system ? [{ role: "system", content: system }] : []),
+      ...messages
+    ];
+
+    try {
+      const response = await fetch(backendUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-deepseek-api-key": this.config.apiKey
+        },
+        body: JSON.stringify({
+          temperature,
+          messages: payloadMessages
+        })
+      });
+
+      if (!response.ok) {
+        const payload = await safeJson(response);
+        return {
+          ok: false,
+          provider: this.providerLabel,
+          error: payload.error || `Content X backend failed: ${response.status}`
+        };
+      }
+
+      const payload = await response.json();
+      return {
+        ok: true,
+        provider: this.providerLabel,
+        text: payload.text || ""
+      };
+    } catch {
+      return {
+        ok: false,
+        provider: this.providerLabel,
+        error: "Content X backend is unavailable."
+      };
+    }
+  }
 }
 
 function normalizeBaseUrl(value) {
   return String(value || "").replace(/\/+$/, "") || "https://api.deepseek.com";
+}
+
+async function safeJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
 }

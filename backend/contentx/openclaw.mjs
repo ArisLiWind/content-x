@@ -1,10 +1,24 @@
 import { CONTENT_X_BACKEND } from "./config.mjs";
+import { callMcpTool, checkMcpRuntime } from "./mcp.mjs";
 
-export async function checkOpenClawGateway({ timeoutMs = 3500 } = {}) {
-  const gatewayUrl = normalizeUrl(CONTENT_X_BACKEND.openclaw.gatewayUrl);
-  const gateway = await fetchWithTimeout(gatewayUrl, { method: "GET" }, timeoutMs);
+export async function checkOpenClawRuntime({ timeoutMs = 3500 } = {}) {
+  if (!CONTENT_X_BACKEND.openclaw.remoteUrl) {
+    return {
+      ok: true,
+      mode: "embedded",
+      source: "content-x-backend",
+      mcp: checkMcpRuntime(),
+      remote: {
+        configured: false,
+        note: "Set OPENCLAW_REMOTE_URL only when deploying a separate OpenClaw cloud backend."
+      }
+    };
+  }
+
+  const remoteUrl = normalizeUrl(CONTENT_X_BACKEND.openclaw.remoteUrl);
+  const gateway = await fetchWithTimeout(remoteUrl, { method: "GET" }, timeoutMs);
   const chat = await fetchWithTimeout(
-    `${gatewayUrl}/v1/chat/completions`,
+    `${remoteUrl}/v1/chat/completions`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -18,7 +32,8 @@ export async function checkOpenClawGateway({ timeoutMs = 3500 } = {}) {
   );
 
   return {
-    gatewayUrl,
+    mode: "remote",
+    remoteUrl,
     gateway,
     chat,
     ok: gateway.ok && chat.ok
@@ -26,7 +41,17 @@ export async function checkOpenClawGateway({ timeoutMs = 3500 } = {}) {
 }
 
 export async function askOpenClaw(message, { timeoutMs = 30000 } = {}) {
-  const gatewayUrl = normalizeUrl(CONTENT_X_BACKEND.openclaw.gatewayUrl);
+  if (!CONTENT_X_BACKEND.openclaw.remoteUrl) {
+    const response = await callMcpTool("content.research", { query: message });
+    return {
+      ok: response.ok,
+      status: response.ok ? 200 : 500,
+      text: response.content?.map((item) => item.text || JSON.stringify(item.json || "")).join("\n") || "",
+      data: response
+    };
+  }
+
+  const gatewayUrl = normalizeUrl(CONTENT_X_BACKEND.openclaw.remoteUrl);
   const response = await fetchWithTimeout(
     `${gatewayUrl}/v1/chat/completions`,
     {
@@ -92,5 +117,5 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 function normalizeUrl(value) {
-  return String(value || "").replace(/\/+$/, "") || "http://127.0.0.1:18789";
+  return String(value || "").replace(/\/+$/, "");
 }

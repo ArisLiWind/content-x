@@ -1,6 +1,6 @@
 # Content X OpenClaw Backend
 
-Content X integrates with the official OpenClaw Gateway from `openclaw/openclaw`.
+Content X embeds an OpenClaw-compatible backend layer inspired by the official `openclaw/openclaw` runtime model.
 
 Upstream:
 
@@ -11,25 +11,17 @@ Upstream:
 Content X V1 treats OpenClaw as a backend-internal capability:
 
 ```text
-OpenClaw Gateway: http://127.0.0.1:18789
+Mode: embedded by default
+Optional remote: OPENCLAW_REMOTE_URL
+MCP Endpoint: http://127.0.0.1:8788/mcp
 Memory Namespace: content-x-memory
 ```
 
 MCP remains an internal tool-layer abstraction in Content X. V1 does not expose OpenClaw, MCP, or Memory configuration in the user settings page.
 
-## Install OpenClaw
+## Embedded Runtime
 
-```bash
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-openclaw gateway status
-```
-
-Foreground/debug mode:
-
-```bash
-openclaw gateway --port 18789 --verbose
-```
+Content X does not require a local OpenClaw CLI or Gateway. The backend provides MCP-style tools for research, memory, filesystem, document, and publisher handoff.
 
 ## Check
 
@@ -37,7 +29,11 @@ openclaw gateway --port 18789 --verbose
 npm run backend:openclaw:check
 ```
 
-Content X sends research tasks to the local OpenClaw Gateway through its OpenAI-compatible chat interface. If the Gateway is unavailable, Content X falls back to the local V1 research adapter so the app remains usable.
+If you want a cloud/self-hosted OpenClaw backend, deploy OpenClaw separately and set:
+
+```bash
+export OPENCLAW_REMOTE_URL=https://your-openclaw-backend.example.com
+```
 
 ## Content X Backend Service
 

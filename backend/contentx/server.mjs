@@ -1,6 +1,7 @@
 import { CONTENT_X_BACKEND, publicBackendConfig } from "./config.mjs";
 import { callDeepSeek } from "./deepseek.mjs";
-import { askOpenClaw, checkOpenClawGateway } from "./openclaw.mjs";
+import { handleMcpJsonRpc } from "./mcp.mjs";
+import { askOpenClaw, checkOpenClawRuntime } from "./openclaw.mjs";
 
 const server = globalThis.Bun
   ? null
@@ -29,17 +30,25 @@ async function route(request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/health") {
-    const openclaw = await checkOpenClawGateway();
+    const openclaw = await checkOpenClawRuntime();
     return sendJson(response, 200, {
       ok: true,
       service: "content-x-backend",
       config: publicBackendConfig(),
       requirements: {
         needsDeepSeekApiKey: !CONTENT_X_BACKEND.deepseek.apiKey,
-        needsOpenClawGateway: !openclaw.ok
+        needsOpenClawCloudDeploy: false
       },
       openclaw
     });
+  }
+
+  if (request.method === "GET" && url.pathname === "/openclaw/status") {
+    return sendJson(response, 200, await checkOpenClawRuntime());
+  }
+
+  if (request.method === "POST" && url.pathname === "/mcp") {
+    return sendJson(response, 200, await handleMcpJsonRpc(await readJson(request)));
   }
 
   if (request.method === "POST" && url.pathname === "/deepseek/test") {
@@ -54,6 +63,19 @@ async function route(request, response) {
         content: "Reply in Chinese with one short sentence confirming DeepSeek is connected to Content X."
       }
     ], { apiKey: requestApiKey });
+    return sendJson(response, result.ok ? 200 : 400, result);
+  }
+
+  if (request.method === "POST" && url.pathname === "/deepseek/chat") {
+    const body = await readJson(request);
+    const requestApiKey = request.headers["x-deepseek-api-key"] || body.apiKey;
+    const messages = Array.isArray(body.messages) ? body.messages : [];
+    if (!messages.length) return sendJson(response, 400, { ok: false, error: "messages are required" });
+
+    const result = await callDeepSeek(messages, {
+      apiKey: requestApiKey,
+      temperature: Number.isFinite(body.temperature) ? body.temperature : 0.7
+    });
     return sendJson(response, result.ok ? 200 : 400, result);
   }
 

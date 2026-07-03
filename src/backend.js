@@ -15,7 +15,7 @@ export const DEFAULT_BACKEND_CONFIG = {
   apiBaseUrl: "https://api.deepseek.com",
   apiKey: "",
   model: "deepseek-chat",
-  openclawGatewayUrl: "http://127.0.0.1:18789",
+  openclawGatewayUrl: "",
   openclawApiKey: "",
   memoryNamespace: "content-x-memory"
 };

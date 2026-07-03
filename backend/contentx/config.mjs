@@ -7,8 +7,10 @@ export const CONTENT_X_BACKEND = {
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.CONTENT_X_DEEPSEEK_API_KEY || ""
   },
   openclaw: {
-    gatewayUrl: process.env.OPENCLAW_URL || "http://127.0.0.1:18789",
-    model: "openclaw"
+    mode: process.env.OPENCLAW_REMOTE_URL ? "remote" : "embedded",
+    remoteUrl: process.env.OPENCLAW_REMOTE_URL || "",
+    model: "openclaw",
+    mcpEndpoint: "/mcp"
   },
   memory: {
     namespace: "content-x-memory"
@@ -19,7 +21,9 @@ export function publicBackendConfig() {
   return {
     apiBaseUrl: CONTENT_X_BACKEND.deepseek.apiBaseUrl,
     model: CONTENT_X_BACKEND.deepseek.model,
-    openclawGatewayUrl: CONTENT_X_BACKEND.openclaw.gatewayUrl,
+    openclawMode: CONTENT_X_BACKEND.openclaw.mode,
+    openclawRemoteConfigured: Boolean(CONTENT_X_BACKEND.openclaw.remoteUrl),
+    mcpEndpoint: CONTENT_X_BACKEND.openclaw.mcpEndpoint,
     memoryNamespace: CONTENT_X_BACKEND.memory.namespace,
     hasDeepSeekApiKey: Boolean(CONTENT_X_BACKEND.deepseek.apiKey)
   };

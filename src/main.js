@@ -3,6 +3,7 @@ import { createTaskState } from "./state.js";
 import { createDefaultToolRouter } from "./tools.js";
 import { createPublisherRegistry } from "./publishers.js";
 import { exportBlob, renderMarkdown } from "./markdown.js";
+import { ModelClient } from "./llm.js";
 import {
   clearAccountSession,
   loadAccountSession,
@@ -30,6 +31,7 @@ const store = {
   accountView: "menu",
   account: loadAccountSession(),
   backendConfig: loadBackendConfig(),
+  backendStatus: createBackendStatus(),
   accountNotice: "",
   hasUpdate: false
 };
@@ -134,6 +136,7 @@ function renderAccountMenu() {
   }
 
   if (store.accountView === "settings") return renderSettingsPanel();
+  if (store.accountView === "backend") return renderBackendStatusPanel();
   if (store.accountView === "profile") return renderSimpleAccountPanel("个人资料", "创作者账号已连接本地 Content Agent。");
   if (store.accountView === "invite") return renderSimpleAccountPanel("邀请好友", "邀请链接会在接入正式后端后生成。");
   if (store.accountView === "quota") return renderSimpleAccountPanel("剩余用量", "本地预览：30 / 100 次 Agent Run。");
@@ -147,6 +150,7 @@ function renderAccountMenu() {
       <div class="account-menu-actions">
         <button data-account-view="profile" type="button">个人资料</button>
         <button data-account-view="settings" type="button">设置</button>
+        <button data-account-view="backend" type="button">后端状态</button>
         <button data-account-view="invite" type="button">邀请好友</button>
         <button data-account-view="quota" type="button">剩余用量</button>
         <button data-action="account-logout" type="button">退出登录</button>
@@ -170,7 +174,42 @@ function renderSettingsPanel() {
         </label>
         <button class="account-primary" type="submit">保存配置</button>
       </form>
+      <button class="account-secondary" data-action="test-deepseek" type="button">测试 DeepSeek</button>
       ${store.accountNotice ? `<p class="account-notice">${escapeHtml(store.accountNotice)}</p>` : ""}
+    </div>
+  `;
+}
+
+function renderBackendStatusPanel() {
+  const status = store.backendStatus;
+  const rows = [
+    ["DeepSeek", store.backendConfig.apiKey ? "已保存" : "等待 API Key"],
+    ["OpenClaw", status.openclawMode],
+    ["MCP", status.mcp],
+    ["Memory", status.memory],
+    ["Filesystem", status.filesystem],
+    ["Publisher", status.publisher]
+  ];
+
+  return `
+    <div class="account-menu account-menu-large">
+      <div class="account-panel-head">
+        <button class="account-back" data-action="account-back" type="button">‹</button>
+        <strong>后端状态</strong>
+      </div>
+      <div class="backend-status-list">
+        ${rows
+          .map(
+            ([label, value]) => `
+              <div class="backend-status-row">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(value)}</strong>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+      <p class="account-panel-copy">OpenClaw、MCP、Memory 属于 Content X 内置后端能力。需要云端部署时，只配置 OPENCLAW_REMOTE_URL，不依赖本机 CLI/Gateway。</p>
     </div>
   `;
 }
@@ -185,6 +224,16 @@ function renderSimpleAccountPanel(title, body) {
       <p class="account-panel-copy">${escapeHtml(body)}</p>
     </div>
   `;
+}
+
+function createBackendStatus() {
+  return {
+    openclawMode: "内置 Harness",
+    mcp: "已启用 /mcp",
+    memory: "content-x-memory",
+    filesystem: "已启用",
+    publisher: "人工确认后发布"
+  };
 }
 
 function renderSearchBox() {
@@ -414,6 +463,11 @@ function bindEvents() {
       store.accountView = "menu";
       store.accountNotice = "已退出登录。";
       render();
+      return;
+    }
+
+    if (button.dataset.action === "test-deepseek") {
+      testDeepSeekConnection();
     }
   };
 
@@ -630,6 +684,34 @@ function bindEvents() {
     });
   });
 
+}
+
+async function testDeepSeekConnection() {
+  if (!store.backendConfig.apiKey) {
+    store.accountNotice = "请先输入并保存 DeepSeek API Key。";
+    render();
+    return;
+  }
+
+  store.accountNotice = "正在测试 DeepSeek 连接...";
+  render();
+
+  const model = new ModelClient(store.backendConfig);
+  const result = await model.chat({
+    system: "你是 Content X 的连接测试助手。",
+    messages: [
+      {
+        role: "user",
+        content: "用一句中文确认 DeepSeek 已经接入 Content X。"
+      }
+    ],
+    temperature: 0.2
+  });
+
+  store.accountNotice = result.ok
+    ? `DeepSeek 已生效：${result.text.slice(0, 80)}`
+    : `DeepSeek 测试失败：${result.error}`;
+  render();
 }
 
 function getCurrentMarkdown() {

@@ -67,7 +67,7 @@ export const DEFAULT_BACKEND_CONFIG = {
   apiBaseUrl:       "https://api.deepseek.com",      // OpenAI-compatible API 基础地址
   apiKey:           "",                               // API 认证密钥
   model:            "deepseek-chat",                  // 模型标识符
-  openclawGatewayUrl: "http://127.0.0.1:18789",       // OpenClaw Gateway
+  openclawGatewayUrl: "",                             // 可选远端 OpenClaw；默认走内置后端
   openclawApiKey:   "",                               // V1 不暴露到普通用户设置页
   memoryNamespace:  "content-x-memory"                // 记忆命名空间
 };
@@ -81,7 +81,7 @@ export const DEFAULT_BACKEND_CONFIG = {
 | `provider` | `string` | 固定 | `deepseek` | V1 内部固定，不出现在普通用户设置页 |
 | `apiBaseUrl` | `string` | 固定 | `https://api.deepseek.com` | V1 内部固定，不出现在普通用户设置页 |
 | `model` | `string` | 固定 | `deepseek-chat` | V1 内部固定，不出现在普通用户设置页 |
-| `openclawGatewayUrl` | `string` | 固定 | `http://127.0.0.1:18789` | V1 内部固定，不出现在普通用户设置页 |
+| `openclawGatewayUrl` | `string` | 可选 | `""` | 可选云端 OpenClaw URL；默认走 Content X 内置 OpenClaw-compatible 后端 |
 | `memoryNamespace` | `string` | 固定 | `content-x-memory` | V1 内部固定，不出现在普通用户设置页 |
 
 ### 2.2 DeepSeek 配置
@@ -109,18 +109,19 @@ npm run backend:deepseek:test
 
 ### 2.3 OpenClaw 后端配置
 
-OpenClaw 作为本地 Gateway，负责外部高质量信息访问和工具扩展。建议安装方式：
+OpenClaw 能力默认由 Content X 内置后端承接，不依赖用户本机 OpenClaw CLI 或 Gateway。可选云端部署时使用：
 
 ```bash
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-openclaw gateway status
+export OPENCLAW_REMOTE_URL=https://your-openclaw-backend.example.com
+npm run backend:start
 ```
 
 Content X V1 内部固定配置：
 
 ```text
-OpenClaw Gateway: http://127.0.0.1:18789
+OpenClaw Mode: embedded
+MCP Endpoint: http://127.0.0.1:8788/mcp
+Memory Namespace: content-x-memory
 ```
 
 官方 OpenClaw 后端：
@@ -130,18 +131,10 @@ Upstream: https://github.com/openclaw/openclaw
 Local backend folder: backend/openclaw
 ```
 
-启动官方 OpenClaw Gateway：
+启动 Content X 后端：
 
 ```bash
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-openclaw gateway status
-```
-
-前台调试模式：
-
-```bash
-npm run backend:openclaw:gateway
+npm run backend:start
 ```
 
 健康检查：
@@ -150,16 +143,18 @@ npm run backend:openclaw:gateway
 npm run backend:openclaw:check
 ```
 
-`src/mcp.js` 中的 `McpGateway` 会在 `research.search` 阶段优先调用 `src/openclaw.js` 的 `OpenClawGateway`，通过官方 Gateway 的 OpenAI-compatible `/v1/chat/completions` 路径获得研究结果。如果 Gateway 不可达或超时，则回退到 `src/tools.js` 中的本地 V1 research adapter，保证前端体验不中断。
+`backend/contentx/mcp.mjs` 提供内置 MCP-style tools。`src/mcp.js` 的 `McpGateway` 保留前端 Harness 内部工具路由；后端 `/mcp` 提供共享工具入口，覆盖 research、memory、filesystem、publisher.prepare。
 
 ### 2.4 Content X 本地后端服务
 
 `backend/contentx/server.mjs` 提供 V1 后端服务：
 
 ```text
-GET  /health          检查 DeepSeek Key 与 OpenClaw Gateway
+GET  /health          检查 DeepSeek Key、内置 OpenClaw-compatible Runtime、MCP、Memory
+POST /deepseek/chat   中间对话通过本地后端调用 DeepSeek
 POST /deepseek/test   测试 DeepSeek 是否可响应
 POST /agent/research  OpenClaw 优先，DeepSeek 兜底的研究入口
+POST /mcp             MCP-style tools/list 与 tools/call
 ```
 
 默认地址：

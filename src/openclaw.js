@@ -95,7 +95,7 @@ export class OpenClawGateway {
 }
 
 function normalizeGatewayUrl(value) {
-  return String(value || "").replace(/\/+$/, "") || "http://127.0.0.1:18789";
+  return String(value || "").replace(/\/+$/, "");
 }
 
 function extractText(data) {

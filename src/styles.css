@@ -385,6 +385,49 @@ input:disabled {
   color: #111;
 }
 
+.account-menu .account-secondary {
+  min-height: 38px;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  text-align: center;
+}
+
+.account-menu .account-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.backend-status-list {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.backend-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.backend-status-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.backend-status-row strong {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
 .account-notice,
 .account-panel-copy {
   margin: 10px 10px 2px;
