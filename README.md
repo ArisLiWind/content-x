@@ -12,10 +12,10 @@ Download the latest desktop app from GitHub Releases:
 
 Available builds:
 
-- macOS Apple Silicon: `Content X-0.1.0-arm64.dmg`
-- macOS Apple Silicon zip: `Content X-0.1.0-arm64-mac.zip`
-- Windows ARM64 installer: `Content X Setup 0.1.0.exe`
-- Windows ARM64 portable app: `Content X 0.1.0.exe`
+- macOS Apple Silicon: `Content.X-0.1.0-arm64.dmg`
+- macOS Apple Silicon zip: `Content.X-0.1.0-arm64-mac.zip`
+- Windows ARM64 installer: `Content.X.Setup.0.1.0.exe`
+- Windows ARM64 portable app: `Content.X.0.1.0.exe`
 
 The current desktop builds are unsigned local-preview builds. On macOS, you may need to allow the app in System Settings after opening it the first time.
 
