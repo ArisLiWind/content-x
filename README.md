@@ -51,6 +51,10 @@ Content Agent
 
 The backend design is inspired by graph-based agent runtimes such as LangGraph, especially shared state, node execution loops, retry policy, channels, and checkpointing. Content X implements its own lightweight JavaScript primitives instead of copying LangGraph internals.
 
+## Documentation
+
+- [Backend API and Agent Scheduling](docs/backend-api-agent-scheduling.md)
+
 ## Current Scope
 
 - Three-column minimal dark workspace
